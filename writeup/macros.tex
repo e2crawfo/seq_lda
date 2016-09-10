@@ -1,0 +1,117 @@
+% Basic mathematical notation
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\expct}[1]{\E\left[#1\right]}
+\renewcommand{\P}{\mathbb{P}}
+\newcommand{\one}{\mathbb{I}}
+\newcommand{\mat}[1]{\mathbf{#1}}
+%\newcommand{\dim}{\operatorname{dim}}
+\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\vecm}{\operatorname{vec}}
+\newcommand{\dist}{\mathsf{dist}}
+\newcommand{\norm}[1]{\|#1\|}
+\newcommand{\sval}{\mathfrak{s}}
+
+% Names of norms and vector spaces
+\newcommand{\ltwo}{\ell^2}
+\newcommand{\lone}{\ell^1}
+\newcommand{\lp}{\ell^p}
+\newcommand{\lpq}{\ell^q}
+\newcommand{\ltworat}{\ell^2_{\cR}}
+\newcommand{\lonerat}{\ell^1_{\cR}}
+\newcommand{\lprat}{\ell^p_{\cR}}
+\newcommand{\inner}[2]{\langle #1, #2 \rangle}
+
+% Notation for MPD and POMDP
+\newcommand{\mdp}{\langle S, A, T, r, d_0\rangle}
+\newcommand{\pomdp}{\langle S, A, T, r, \Omega, O, \bzero \rangle}
+% Notation for weighted automata
+\newcommand{\sstar}{\Sigma^\star}
+\newcommand{\cF}{\mathcal{F}}
+\newcommand{\cR}{\mathcal{R}}
+\newcommand{\A}{\mat{A}}
+\newcommand{\B}{\mat{B}}
+\newcommand{\ahist}{\boldsymbol{\alpha}_h}
+\newcommand{\bhist}{\boldsymbol{\beta}_h}
+\newcommand{\azero}{\boldsymbol{\alpha}_0}
+\newcommand{\tazero}{\tilde{\boldsymbol{\alpha}}_0}
+\newcommand{\hazero}{\hat{\boldsymbol{\alpha}}_0}
+\newcommand{\ainf}{\boldsymbol{\alpha}_{\infty}}
+\newcommand{\hainf}{\hat{\boldsymbol{\alpha}}_{\infty}}
+\newcommand{\tainf}{\tilde{\boldsymbol{\alpha}}_{\infty}}
+\newcommand{\bzero}{\boldsymbol{\beta}_0}
+\newcommand{\binf}{\boldsymbol{\beta}_{\infty}}
+\newcommand{\wa}{\langle \azero, \ainf, \{\A_\sigma\} \rangle}
+\newcommand{\wA}{\langle \azero, \{\A_\sigma\} \rangle}
+\newcommand{\waS}{\langle \azero, \ainf, \{\A_\sigma\}_{\sigma \in \Sigma} \rangle}
+\newcommand{\wbS}{\langle \bzero, \binf, \{\B_\sigma\}_{\sigma \in \Sigma} \rangle}
+\newcommand{\waQ}{\langle \mQ^\top \azero, \mQ^{-1} \ainf, \{\mQ^{-1} \A_\sigma
+\mQ\} \rangle}
+\newcommand{\hwa}{\langle \hazero, \hainf, \{\hat{\A}_\sigma\} \rangle}
+\newcommand{\twa}{\langle \tazero, \tainf, \{\tilde{\A}_\sigma\} \rangle}
+\newcommand{\wb}{\langle \bzero, \binf, \{\B_\sigma\} \rangle}
+\newcommand{\waV}{\langle \azero, \phi, \{\tau_\sigma\} \rangle}
+\newcommand{\wasigma}{\langle \azero, \ainf, \{\A_\sigma\}_{\sigma \in \Sigma} \rangle}
+\newcommand{\alamb}{\boldsymbol{\alpha}_{\lambda}}
+\newcommand{\ainfa}{\boldsymbol{\alpha}_{a}}
+\newcommand{\wapS}{\langle \alamb, \{\ainfa\}_{a \in A}, \{\A_\sigma\}_{\sigma \in \Sigma} \rangle}
+\newcommand{\wap}{\langle \alamb, \{\ainfa\}, \{\A_\sigma\} \rangle}
+\newcommand{\wAp}{\langle \alamb, \{\A_\sigma\} \rangle}
+
+% Sets with name
+\newcommand{\Ps}{\mathcal{P}}
+\newcommand{\Ss}{\mathcal{S}}
+\newcommand{\cD}{\mathcal{D}}
+\newcommand{\cA}{\mathcal{A}}
+\newcommand{\cB}{\mathcal{B}}
+
+% Special norms
+\newcommand{\normop}[1]{\|#1\|_{\mathrm{op}}}
+\newcommand{\normhk}[1]{\|#1\|_{\mathrm{hk}}}
+
+% (Blocks of) Hankel matrices
+\renewcommand{\H}{\mat{H}}
+\newcommand{\hr}{\mat{h}_{\lambda,\Ss}}
+\newcommand{\hc}{\mat{h}_{\Ps,\lambda}}
+
+% Named matrices and vectors
+\renewcommand{\v}{\mat{v}}
+\newcommand{\mM}{\mat{M}}
+\newcommand{\mP}{\mat{P}}
+\newcommand{\mS}{\mat{S}}
+\newcommand{\mG}{\mat{G}}
+\newcommand{\mU}{\mat{U}}
+\newcommand{\mV}{\mat{V}}
+\newcommand{\mD}{\mat{D}}
+\newcommand{\mQ}{\mat{Q}}
+\newcommand{\mI}{\mat{I}}
+\newcommand{\mT}{\mat{T}}
+\renewcommand{\mp}{\mat{p}}
+\newcommand{\me}{\mat{e}}
+
+% Environments for mathematical statements
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{problem}[theorem]{Problem}
+\newtheorem{definition}[theorem]{Definition}
+%\newtheorem{conjecture}[theorem]{Conjecture}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+% added by e2crawfo
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\newcommand{\be}{b}
+\newcommand{\jcost}[1]{\sum_{t=1}^T E_{s \sim d^t_{#1}}[C_{#1}(s)]}
+\newcommand{\lloss}[4]{E_{#1 \sim d_{#3}, a \sim \pi^*(#1)}[\ell(#2, a, #4)]}
+\newcommand{\exprt}[1]{\pi^*(#1)}
+\newcommand{\pihat}[1]{\hat{\pi}_{#1}}
+\newcommand{\hinge}[1]{\left[1 - #1\right]_+}
+
+\newcommand\independent{\protect\mathpalette{\protect\independenT}{\perp}}
+\def\independenT#1#2{\mathrel{\rlap{$#1#2$}\mkern2mu{#1#2}}}

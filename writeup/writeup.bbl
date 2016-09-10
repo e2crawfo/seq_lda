@@ -1,0 +1,18 @@
+\begin{thebibliography}{}
+
+\bibitem[Blei et~al., 2003]{blei2003latent}
+Blei, D.~M., Ng, A.~Y., and Jordan, M.~I. (2003).
+\newblock Latent dirichlet allocation.
+\newblock {\em Journal of machine Learning research}, 3(Jan):993--1022.
+
+\bibitem[Kumar and Daume~III, 2012]{kumar2012learning}
+Kumar, A. and Daume~III, H. (2012).
+\newblock Learning task grouping and overlap in multi-task learning.
+\newblock {\em arXiv preprint arXiv:1206.6417}.
+
+\bibitem[Zhang et~al., 2008]{zhang2008flexible}
+Zhang, J., Ghahramani, Z., and Yang, Y. (2008).
+\newblock Flexible latent variable models for multi-task learning.
+\newblock {\em Machine Learning}, 73(3):221--242.
+
+\end{thebibliography}

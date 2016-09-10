@@ -1,0 +1,12 @@
+\BOOKMARK [1][-]{section*.1}{Multitask Sequence Learning}{}% 1
+\BOOKMARK [2][-]{section*.2}{Mixtures of Shared Sequence Generators}{section*.1}% 2
+\BOOKMARK [2][-]{section*.7}{Relation to Latent Dirichlet Allocation}{section*.1}% 3
+\BOOKMARK [2][-]{section*.8}{Prediction}{section*.1}% 4
+\BOOKMARK [1][-]{section*.9}{Algorithm}{}% 5
+\BOOKMARK [2][-]{section*.10}{Modelling Topics as Sequence Generators}{section*.9}% 6
+\BOOKMARK [1][-]{section*.11}{Results}{}% 7
+\BOOKMARK [1][-]{section*.12}{Discussion and Related Work}{}% 8
+\BOOKMARK [2][-]{section*.13}{Notation}{section*.12}% 9
+\BOOKMARK [1][-]{section*.14}{Learning Algorithm}{}% 10
+\BOOKMARK [2][-]{section*.15}{Variational Expectation-Maximization for LDA}{section*.14}% 11
+\BOOKMARK [2][-]{section*.18}{Topics as Sequence Generators}{section*.14}% 12
