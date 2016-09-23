@@ -10,7 +10,7 @@ from sklearn.utils import check_random_state
 from spectral_dagger.datasets import pendigits
 from spectral_dagger.utils import run_experiment_and_plot, sample_multinomial
 
-from seq_lda.algorithms import Lstm1x1, LstmAgg, LstmLDA
+from seq_lda.algorithms import GmmHmm1x1, GmmHmmAgg, GmmHmmLDA
 from seq_lda import (
     generate_multitask_sequence_data,
     RMSE_score, log_likelihood_score)  # , one_norm_score)
@@ -28,7 +28,7 @@ def generate_pendigit_data(
         test_wpt=0,
         permute=False,
         difference=True,
-        sample_every=1,
+        sample_every=4,
         random_state=None):
     rng = check_random_state(random_state)
 
@@ -185,36 +185,29 @@ seaborn.set(style="white")
 seaborn.set_context(rc={'lines.markeredgewidth': 0.1})
 
 if __name__ == "__main__":
-    lstm_verbose = False
+    gmm_hmm_verbose = False
     lda_verbose = True
     use_digits = [0, 1, 2, 3, 4]
 
     def point_distribution(self, context):
         return dict()
 
-    Lstm1x1.point_distribution = point_distribution
-    LstmAgg.point_distribution = point_distribution
+    GmmHmm1x1.point_distribution = point_distribution
+    GmmHmmAgg.point_distribution = point_distribution
 
     def point_distribution(self, context):
         return dict(n_topics=[len(use_digits)])
-    LstmLDA.point_distribution = point_distribution
+    GmmHmmLDA.point_distribution = point_distribution
 
     estimators = [
-        Lstm1x1(n_hidden=10,
-                lstm_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=lstm_verbose)),
-        LstmAgg(n_hidden=10,
-                lstm_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=lstm_verbose)),
-        LstmLDA(n_hidden=2, n_samples=100, reuse=True,
-                lstm_kwargs=dict(max_epochs=50, use_dropout=False, patience=1, validFreq=200, verbose=lstm_verbose),
-                lda_settings=dict(em_max_iter=30, em_tol=0.01),
-                verbose=lda_verbose)]
-    #  EmPfaLDA(
-    #      n_samples=1000,
-    #      em_kwargs=dict(
-    #          pct_valid=0.0, alg='bw', verbose=hmm_verbose,
-    #          hmm=False, treba_args="--threads=4", n_restarts=1,
-    #          max_iters=10, max_delta=0.5),
-    #      verbose=lda_verbose, name="bw,n_samples=1000,max_iters=10"),
+        GmmHmmLDA(n_states=30, n_samples=200,
+            gmm_hmm_kwargs=dict(max_iter=100, verbose=gmm_hmm_verbose, careful=False, cov_type='full'),
+            lda_settings=dict(em_max_iter=30, em_tol=0.01),
+            verbose=lda_verbose, reuse=True),
+        GmmHmm1x1(n_states=30,
+            gmm_hmm_kwargs=dict(max_iter=30, verbose=gmm_hmm_verbose)),
+        GmmHmmAgg(n_states=30,
+            gmm_hmm_kwargs=dict(max_iter=30, verbose=gmm_hmm_verbose))]
 
     random_state = np.random.RandomState(50)
 

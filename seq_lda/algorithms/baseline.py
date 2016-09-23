@@ -1,46 +1,44 @@
 from __future__ import print_function
 import numpy as np
+import abc
+import six
 
 from spectral_dagger.sequence import (
-    AdjustedMarkovChain, SpectralSA, ExpMaxSA,
-    ProbabilisticLSTM)
+    AdjustedMarkovChain, SpectralSA, ExpMaxSA, GmmHmm)
 from spectral_dagger.utils import Estimator
 
 from seq_lda import MultitaskPredictor
 
 
-class Markov1x1(MultitaskPredictor, Estimator):
-    record_attrs = []
-
-    def __init__(self, name="Markov1x1"):
+@six.add_metaclass(abc.ABCMeta)
+class OneByOne(MultitaskPredictor, Estimator):
+    def __init__(self, bg_kwargs=None, name=None, directory=None):
         self._init(locals())
-
-    def point_distribution(self, context):
-        return {}
 
     def fit(self, X, y=None):
         self.record_indices(X.indices)
 
         tasks = X.core_data.as_sequences() + X.transfer_data.as_sequences()
-        self.markov_chains_ = [
-            AdjustedMarkovChain.from_sequences(
-                task, X.learn_halt,
-                n_symbols=X.n_symbols) for task in tasks]
+        self.base_generators_ = [
+            self.fit_base_generator(task, X) for task in tasks]
 
         return self
 
-    def _predictor_for_task(self, idx):
-        return self.markov_chains_[idx]
-
-
-class MarkovAgg(MultitaskPredictor, Estimator):
-    record_attrs = []
-
-    def __init__(self, add_transfer_data=False, name="MarkovAgg"):
-        self._init(locals())
-
     def point_distribution(self, context):
-        return {}
+        return super(OneByOne, self).point_distribution(context)
+
+    def _predictor_for_task(self, idx):
+        return self.base_generators_[idx]
+
+    @abc.abstractmethod
+    def fit_base_generator(self, sequences, X, previous=None):
+        raise NotImplementedError()
+
+
+@six.add_metaclass(abc.ABCMeta)
+class Aggregate(MultitaskPredictor, Estimator):
+    def __init__(self, bg_kwargs=None, name=None, directory=None, add_transfer_data=False):
+        self._init(locals())
 
     def fit(self, X, y=None):
         self.record_indices(X.indices)
@@ -52,197 +50,142 @@ class MarkovAgg(MultitaskPredictor, Estimator):
         all_sequences = [
             seq for sequences in tasks for seq in sequences]
 
-        self.markov_chain_ = (
-            AdjustedMarkovChain.from_sequences(
-                all_sequences, X.learn_halt,
-                n_symbols=X.n_symbols))
+        self.base_generator_ = self.fit_base_generator(all_sequences, X)
 
         return self
 
+    def point_distribution(self, context):
+        return super(Aggregate, self).point_distribution(context)
+
     def _predictor_for_task(self, idx):
-        return self.markov_chain_
+        return self.base_generator_
+
+    @abc.abstractmethod
+    def fit_base_generator(self, sequences, X, previous=None):
+        raise NotImplementedError()
 
 
+class MarkovBase(object):
+    def fit_base_generator(self, sequences, X, previous=None):
+        return AdjustedMarkovChain.from_sequences(
+            sequences, X.learn_halt, n_symbols=X.n_symbols)
+
+
+class Markov1x1(MarkovBase, OneByOne):
+    pass
+
+
+class MarkovAgg(MarkovBase, Aggregate):
+    pass
+
+
+@six.add_metaclass(abc.ABCMeta)
 class StatesMixin(object):
+    def __init__(self, n_states=1, bg_kwargs=None, directory=None, name=None):
+        self._init(locals())
+
+    def record_attrs(self):
+        return super(StatesMixin, self).record_attrs() or set(['n_states'])
+
     def point_distribution(self, context):
-        return dict(n_states=np.arange(2, context['max_states']))
+        pd = super(StatesMixin, self).point_distribution(context)
+        pd.update(n_states=range(2, context['max_states']))
+        return pd
 
 
-class Spectral1x1(MultitaskPredictor, StatesMixin, Estimator):
-    record_attrs = ['n_states']
-
-    def __init__(self, n_states=1, estimator='prefix', name="Spectral1x1"):
-        self._init(locals())
-
-    def fit(self, X, y=None):
-        self.record_indices(X.indices)
-
-        self.stoch_autos_ = []
-
-        tasks = X.data.as_sequences()
-        for sequences in tasks:
-            sa = SpectralSA(
-                self.n_states, X.n_symbols,
-                estimator=self.estimator)
-            sa.fit(sequences)
-            self.stoch_autos_.append(sa)
-
-        return self
-
-    def _predictor_for_task(self, idx):
-        return self.stoch_autos_[idx]
+class SpectralBase(StatesMixin):
+    def fit_base_generator(self, sequences, X, previous=None):
+        bg_kwargs = dict() if self.bg_kwargs is None else self.bg_kwargs
+        sa = SpectralSA(self.n_states, X.n_symbols, **bg_kwargs)
+        sa.fit(sequences)
+        return sa
 
 
-class SpectralAgg(MultitaskPredictor, StatesMixin, Estimator):
-    record_attrs = ['n_states']
+class Spectral1x1(SpectralBase, OneByOne):
+    pass
 
+
+class SpectralAgg(SpectralBase, Aggregate):
     def __init__(
-            self, n_states=1, estimator='prefix',
-            add_transfer_data=False, name="SpectralAgg"):
+            self, n_states=1, add_transfer_data=False,
+            bg_kwargs=None, directory=None, name=None):
         self._init(locals())
 
-    def fit(self, X, y=None):
-        self.record_indices(X.indices)
 
-        if self.add_transfer_data:
-            tasks = X.data.as_sequences()
-        else:
-            tasks = X.core_data.as_sequences()
-        all_sequences = [
-            seq for sequences in tasks for seq in sequences]
-
-        self.stoch_auto_ = SpectralSA(
-            self.n_states, X.n_symbols, estimator=self.estimator)
-        self.stoch_auto_.fit(all_sequences)
-
-        return self
-
-    def _predictor_for_task(self, idx):
-        return self.stoch_auto_
-
-
-class ExpMax1x1(MultitaskPredictor, StatesMixin, Estimator):
-    def __init__(
-            self, n_states=1, em_kwargs=None,
-            directory="results/expmax1x1", name="ExpMax1x1"):
-        self._init(locals())
-
-    def fit(self, X, y=None):
+class ExpMaxBase(StatesMixin):
+    def fit_base_generator(self, sequences, X, previous=None):
         if not X.learn_halt:
             raise Exception("Cannot run EM if ``learn_halt`` False.")
-        self.record_indices(X.indices)
-
-        self.stoch_autos_ = []
-
-        em_kwargs = (
-            dict(verbose=False)
-            if self.em_kwargs is None else self.em_kwargs)
-
-        tasks = X.data.as_sequences()
-        for sequences in tasks:
-            sa = ExpMaxSA(
-                self.n_states, X.n_symbols,
-                directory=self.directory, **em_kwargs)
-            sa.fit(sequences)
-            self.stoch_autos_.append(sa)
-
-        return self
-
-    def _predictor_for_task(self, idx):
-        return self.stoch_autos_[idx]
+        bg_kwargs = dict() if self.bg_kwargs is None else self.bg_kwargs
+        sa = ExpMaxSA(self.n_states, X.n_symbols, directory=self.directory, **bg_kwargs)
+        sa.fit(sequences)
+        return sa
 
 
-class ExpMaxAgg(MultitaskPredictor, StatesMixin, Estimator):
+class ExpMax1x1(ExpMaxBase, OneByOne):
+    pass
+
+
+class ExpMaxAgg(ExpMaxBase, Aggregate):
     def __init__(
-            self, n_states=1, em_kwargs={},
-            add_transfer_data=False, directory="results/expmaxagg",
-            name="ExpMaxAgg"):
+            self, n_states=1, bg_kwargs=None, directory=None, name=None):
         self._init(locals())
 
-    def fit(self, X, y=None):
-        if not X.learn_halt:
-            raise Exception("Cannot run EM if ``learn_halt`` False.")
-        self.record_indices(X.indices)
-        em_kwargs = (
-            dict(verbose=False)
-            if self.em_kwargs is None else self.em_kwargs)
 
-        if self.add_transfer_data:
-            tasks = X.data.as_sequences()
-        else:
-            tasks = X.core_data.as_sequences()
-        all_sequences = [
-            seq for sequences in tasks for seq in sequences]
-
-        self.stoch_auto_ = ExpMaxSA(
-            self.n_states, X.n_symbols,
-            directory=self.directory, **em_kwargs)
-        self.stoch_auto_.fit(all_sequences)
-
-        return self
-
-    def _predictor_for_task(self, idx):
-        return self.stoch_auto_
-
-
-class LSTM1x1(MultitaskPredictor, Estimator):
+class NeuralBase(object):
     def __init__(
-            self, n_hidden=2, lstm_kwargs=None,
-            directory="results/lstm1x1", name="Lstm1x1"):
+            self, nn_class, n_hidden=2, bg_kwargs=None, directory=None, name=None):
         self._init(locals())
+
+    def record_attrs(self):
+        return super(StatesMixin, self).record_attrs() or set(['n_hidden'])
 
     def point_distribution(self, context):
-        return dict(n_hidden=np.arange(2, context['max_states']))
+        pd = super(NeuralBase, self).point_distribution(context)
+        pd.update(n_hidden=range(2, context['max_states']))
+        return pd
 
-    def fit(self, X, y=None):
+    def fit_base_generator(self, sequences, X, previous=None):
         if not X.learn_halt:
-            raise Exception("Cannot run LSTM if ``learn_halt`` False.")
-        self.record_indices(X.indices)
+            raise Exception("Cannot run Neural if ``learn_halt`` False.")
+        bg_kwargs = dict() if self.bg_kwargs is None else self.bg_kwargs
+        if previous is None:
+            nn = self.nn_class(n_hidden=self.n_hidden, **bg_kwargs)
+        else:
+            nn = previous
 
-        self.lstms_ = []
-
-        lstm_kwargs = dict() if self.lstm_kwargs is None else self.lstm_kwargs
-
-        tasks = X.data.as_sequences()
-        for sequences in tasks:
-            sa = ProbabilisticLSTM(directory=self.directory, **lstm_kwargs)
-            sa.fit(sequences)
-            self.lstms_.append(sa)
-
-        return self
-
-    def _predictor_for_task(self, idx):
-        return self.lstms_[idx]
+        nn.fit(sequences)
+        return nn
 
 
-class Lstm(MultitaskPredictor, Estimator):
+class Neural1x1(NeuralBase, OneByOne):
+    pass
+
+
+class NeuralAgg(NeuralBase, Aggregate):
     def __init__(
-            self, n_hidden=2, lstm_kwargs={},
-            add_transfer_data=False, directory="results/lstmagg",
-            name="LstmAgg"):
+            self, nn_class, n_hidden=2, bg_kwargs=None,
+            add_transfer_data=False, directory=None, name=None):
         self._init(locals())
 
-    def point_distribution(self, context):
-        return dict(n_hidden=np.arange(2, context['max_states']))
 
-    def fit(self, X, y=None):
-        if not X.learn_halt:
-            raise Exception("Cannot run LSTM if ``learn_halt`` is False.")
-        self.record_indices(X.indices)
-        lstm_kwargs = dict() if self.lstm_kwargs is None else self.lstm_kwargs
+class GmmHmmBase(StatesMixin):
+    def fit_base_generator(self, sequences, X, previous=None):
+        bg_kwargs = dict() if self.bg_kwargs is None else self.bg_kwargs
+        gmm_hmm = GmmHmm(
+            n_dim=X.n_input, n_states=self.n_states, n_components=self.n_components,
+            directory=self.directory, **bg_kwargs)
+        gmm_hmm.fit(sequences)
+        return gmm_hmm
 
-        if self.add_transfer_data:
-            tasks = X.data.as_sequences()
-        else:
-            tasks = X.core_data.as_sequences()
-        all_sequences = [
-            seq for sequences in tasks for seq in sequences]
 
-        self.lstm_ = ProbabilisticLSTM(
-            directory=self.directory, **lstm_kwargs)
-        self.lstm_.fit(all_sequences)
+class GmmHmm1x1(GmmHmmBase, OneByOne):
+    pass
 
-        return self
 
-    def _predictor_for_task(self, idx):
-        return self.lstm_
+class GmmHmmAgg(GmmHmmBase, Aggregate):
+    def __init__(
+            self, n_hidden=2, bg_kwargs=None,
+            add_transfer_data=False, directory=None,
+            name=None):
+        self._init(locals())

@@ -8,7 +8,7 @@ from functools import partial
 from sklearn.utils import check_random_state
 
 from spectral_dagger.utils import run_experiment_and_plot, normalize
-from spectral_dagger.sequence import HMM, MixtureStochAuto
+from spectral_dagger.sequence import HMM, MixtureSeqGen
 
 from seq_lda.algorithms import EmPfaLDA, ExpMax1x1, ExpMaxAgg
 from seq_lda import (
@@ -115,7 +115,7 @@ def generate_ihmm_synthetic_data(
             hmm = HMM(pi[idx], _A, _B, stop_prob)
             hmms_for_task.append(hmm)
 
-        generator = MixtureStochAuto(tc, hmms_for_task)
+        generator = MixtureSeqGen(tc, hmms_for_task)
         generators.append(generator)
 
         sequences = generator.sample_episodes(
@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     quick_exp_kwargs = exp_kwargs.copy()
     quick_exp_kwargs.update(
-        x_var_values=[5, 6], n_repeats=2, search_kwargs=dict(n_iter=2))
+        x_var_values=[2, 3], n_repeats=1, search_kwargs=dict(n_iter=2))
 
     score_display = [
         'Correct Prediction Rate',

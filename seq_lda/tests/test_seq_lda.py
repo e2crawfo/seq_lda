@@ -72,7 +72,7 @@ def run_lda_test(
         for k in learned_topics:
             print k
         print "Ground Truth"
-        print gt_model.generators_[0].get_string_prob([1])
+        print gt_model.generators_[0].string_prob([1])
         gt_topics = gt_model.log_topics(data.words)
         for k in gt_topics:
             print k
@@ -215,9 +215,9 @@ def test_callback_markov(learn_halt, delete=True):
                 mcs.append(mc)
                 for w, word in enumerate(dictionary.words):
                     log_prob_w[k][w] = (
-                        mc.get_prefix_prob(word, log=True)
+                        mc.prefix_prob(word, log=True)
                         if not learn_halt
-                        else mc.get_string_prob(word, log=True))
+                        else mc.string_prob(word, log=True))
             _mcs[0] = mcs
             return log_prob_w
 
@@ -272,9 +272,9 @@ def _test_callback_spectral(learn_halt, delete=True):
 
                 for w, word in enumerate(dictionary.words):
                     log_prob_w[k][w] = (
-                        sa.get_prefix_prob(word, log=True)
+                        sa.prefix_prob(word, log=True)
                         if not learn_halt
-                        else sa.get_string_prob(word, log=True))
+                        else sa.string_prob(word, log=True))
                 print("n_components for topic %d: %d" % (k, sa.n_components_))
 
             print("Error induced by dist projection: ")

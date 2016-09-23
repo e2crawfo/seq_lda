@@ -8,7 +8,7 @@ from sklearn.utils import check_random_state
 from sklearn.cross_validation import train_test_split
 
 from spectral_dagger.sequence import AdjustedMarkovChain
-from spectral_dagger.sequence import MixtureStochAuto
+from spectral_dagger.sequence import MixtureSeqGen
 from spectral_dagger.utils import sample_multinomial, normalize
 
 
@@ -131,10 +131,13 @@ class Dictionary(object):
         self.words = []
         self.word_indices = {}
 
-    def encode(self, docs, to_hashable=lambda x: x, name=None):
+    def encode(self, docs, to_hashable=None, name=None):
+        if to_hashable is None:
+            to_hashable = lambda x: x
+
         indices, counts = [], []
         for d in docs:
-            if not d:
+            if len(d) == 0:
                 indices.append([])
                 counts.append([])
                 continue
@@ -404,14 +407,14 @@ class SequentialLDA(MultitaskPredictor):
         for i, generator in enumerate(self.generators_):
             for j, word in enumerate(words):
                 _log_topics[i, j] = (
-                    generator.get_prefix_prob(word, log=True) if prefix
-                    else generator.get_string_prob(word, log=True))
+                    generator.prefix_prob(word, log=True) if prefix
+                    else generator.string_prob(word, log=True))
         return _log_topics
 
     def _predictor_for_task(self, idx):
         gamma = self.gamma_[idx, :].copy()
         theta = normalize(gamma, ord=1)
-        return MixtureStochAuto(theta, self.generators_)
+        return MixtureSeqGen(theta, self.generators_)
 
     def generate_data(
             self,
@@ -681,8 +684,7 @@ def process_results_markov_lda(log_init, log_T, log_halt, learn_halt):
 
 def _process_settings(settings):
     if settings is None:
-        settings = "settings.txt"
-        write_settings(settings)
+        settings = EST_SETTINGS
     elif isinstance(settings, str):
         pass
     else:
@@ -705,7 +707,7 @@ def write_settings(
 
 def fit_lda(
         bow_corpus, directory, n_topics, n_word_types,
-        estimate_alpha=True, settings=EST_SETTINGS,
+        estimate_alpha=True, settings=None,
         start="random", log_name=""):
 
     settings = _process_settings(settings)
@@ -721,7 +723,7 @@ def fit_lda(
 def fit_markov_lda(
         bow_corpus, directory, n_topics, n_word_types, n_symbols,
         learn_halt, estimate_alpha=True,
-        settings=EST_SETTINGS, start="random", log_name=""):
+        settings=None, start="random", log_name=""):
 
     settings = _process_settings(settings)
     nwi = bow_corpus.normalized_word_indices()
@@ -739,7 +741,7 @@ def fit_markov_lda(
 
 def fit_callback_lda(
         bow_corpus, directory, n_topics, n_word_types, callback,
-        estimate_alpha=True, settings=EST_SETTINGS, start="random",
+        estimate_alpha=True, settings=None, start="random",
         log_name=""):
 
     settings = _process_settings(settings)
@@ -828,3 +830,30 @@ def one_norm_score(estimator, X, y=None):
         total_predictions += n_predictions
 
     return -total_error / total_predictions
+
+
+def RMSE_score(estimator, X, y=None):
+    """ ``X`` must be an instance of ``MultitaskSequenceDataset``.
+
+    Only works for continuous data.
+
+    """
+    sequences = X.data.as_sequences()
+    sequences = [s for s in sequences if len(sequences)]
+
+    total_error = 0.0
+    total_predictions = 0
+
+    for task_idx, task_sequences in zip(X.indices, sequences):
+        if len(task_sequences) == 0:
+            continue
+
+        predictor = estimator.predictor_for_task(task_idx)
+        error = predictor.RMSE(task_sequences)
+        error = error**2
+        n_predictions = sum(len(ts) for ts in task_sequences)
+
+        total_error += error * n_predictions
+        total_predictions += n_predictions
+
+    return -np.sqrt(total_error / total_predictions)
