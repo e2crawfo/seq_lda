@@ -6,5 +6,5 @@ from .baseline import (
     Markov1x1, MarkovAgg,
     Spectral1x1, SpectralAgg,
     ExpMax1x1, ExpMaxAgg,
-    Lstm1x1, LstmAgg,
+    Neural1x1, NeuralAgg,
     GmmHmm1x1, GmmHmmAgg)

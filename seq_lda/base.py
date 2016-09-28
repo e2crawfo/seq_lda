@@ -389,7 +389,7 @@ class SequentialLDA(MultitaskPredictor):
 
         """
         self.alpha_ = alpha
-        self.generators_ = generators
+        self.base_generators_ = generators
         self.n_topics = len(generators)
         self.name = name
 
@@ -403,8 +403,8 @@ class SequentialLDA(MultitaskPredictor):
         """ Get topic-conditional word propabilities in log space
             for all topics in the current model. """
 
-        _log_topics = np.zeros((len(self.generators_), len(words)))
-        for i, generator in enumerate(self.generators_):
+        _log_topics = np.zeros((len(self.base_generators_), len(words)))
+        for i, generator in enumerate(self.base_generators_):
             for j, word in enumerate(words):
                 _log_topics[i, j] = (
                     generator.prefix_prob(word, log=True) if prefix
@@ -414,7 +414,7 @@ class SequentialLDA(MultitaskPredictor):
     def _predictor_for_task(self, idx):
         gamma = self.gamma_[idx, :].copy()
         theta = normalize(gamma, ord=1)
-        return MixtureSeqGen(theta, self.generators_)
+        return MixtureSeqGen(theta, self.base_generators_)
 
     def generate_data(
             self,
@@ -427,7 +427,7 @@ class SequentialLDA(MultitaskPredictor):
             random_state=None):
         random_state = check_random_state(random_state)
 
-        n_symbols = self.generators_[0].n_observations
+        n_symbols = self.base_generators_[0].n_observations
         n_words_per_doc = n_train_wpd + n_test_wpd
 
         n_docs = n_train_docs + n_transfer_docs + n_test_docs
@@ -445,7 +445,7 @@ class SequentialLDA(MultitaskPredictor):
             for i in range(n_words_per_doc):
                 topic = sample_multinomial(
                     normalize(self.gamma_[d], ord=1, axis=1), random_state)
-                generator = self.generators_[topic]
+                generator = self.base_generators_[topic]
                 docs[-1].append(
                     generator.sample_episode(
                         horizon=horizon, random_state=random_state))
@@ -464,8 +464,8 @@ class SequentialLDA(MultitaskPredictor):
                 n_topics=self.n_topics,
                 max_topics=2*self.n_topics,
                 n_symbols=n_symbols,
-                max_states=max(g.n_states for g in self.generators_),
-                n_components=self.generators_[0].n_states))
+                max_states=max(g.n_states for g in self.base_generators_),
+                n_components=self.base_generators_[0].n_states))
 
 
 class LDA(object):
@@ -520,8 +520,8 @@ class LDA(object):
             dict(
                 true_model=self,
                 n_topics=self.n_topics,
-                max_states=max(g.n_states for g in self.generators_),
-                n_components=self.generators_[0].n_states))
+                max_states=max(g.n_states for g in self.base_generators_),
+                n_components=self.base_generators_[0].n_states))
 
     def log_topics(self, words=None):
         return self.log_topics_

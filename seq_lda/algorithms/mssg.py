@@ -44,7 +44,7 @@ class MSSG(SequentialLDA, Estimator):
         training_words = corpus.get_all_words()
         n_word_types = len(training_words)
 
-        self.first_fit = True
+        self.base_generators_ = None
 
         def callback(class_word):
             class_word = normalize(class_word, ord=1, axis=1)
@@ -57,7 +57,7 @@ class MSSG(SequentialLDA, Estimator):
                 data, _ = sample_words(
                     self.n_samples, dist, training_words, random_state)
 
-                if self.first_fit:
+                if old_bgs is None:
                     bg = self.fit_base_generator(data, X)
                 else:
                     bg = self.fit_base_generator(data, X, previous=old_bgs[k])

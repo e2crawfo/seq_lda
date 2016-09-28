@@ -9,7 +9,7 @@ from sklearn.utils import check_random_state
 from spectral_dagger.datasets import pendigits
 from spectral_dagger.utils import run_experiment_and_plot
 
-from seq_lda.algorithms import Lstm1x1, LstmAgg, LstmLDA
+from seq_lda.algorithms import Neural1x1, NeuralAgg, NeuralLDA
 from seq_lda import (
     generate_multitask_sequence_data,
     RMSE_score, log_likelihood_score)  # , one_norm_score)
@@ -61,21 +61,21 @@ seaborn.set(style="white")
 seaborn.set_context(rc={'lines.markeredgewidth': 0.1})
 
 if __name__ == "__main__":
-    lstm_verbose = False
+    neural_verbose = False
     lda_verbose = True
     use_digits = [0, 1, 2]
 
     def point_distribution(self, context):
         return dict()
-    Lstm1x1.point_distribution = point_distribution
+    Neural1x1.point_distribution = point_distribution
 
     estimators = [
-        Lstm1x1(n_hidden=2, name="n_hidden=2",
-                lstm_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=True)),
-        Lstm1x1(n_hidden=5, name="n_hidden=5",
-                lstm_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=True)),
-        Lstm1x1(n_hidden=10, name="n_hidden=10",
-                lstm_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=True))]
+        Neural1x1(n_hidden=2, name="n_hidden=2",
+                neural_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=True)),
+        Neural1x1(n_hidden=5, name="n_hidden=5",
+                neural_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=True)),
+        Neural1x1(n_hidden=10, name="n_hidden=10",
+                neural_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=True))]
 
     random_state = np.random.RandomState(50)
 

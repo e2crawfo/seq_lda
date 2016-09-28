@@ -1,5 +1,4 @@
 from __future__ import print_function
-import numpy as np
 import abc
 import six
 
@@ -138,7 +137,7 @@ class NeuralBase(object):
         self._init(locals())
 
     def record_attrs(self):
-        return super(StatesMixin, self).record_attrs() or set(['n_hidden'])
+        return super(NeuralBase, self).record_attrs() or set(['n_hidden'])
 
     def point_distribution(self, context):
         pd = super(NeuralBase, self).point_distribution(context)
@@ -173,8 +172,7 @@ class GmmHmmBase(StatesMixin):
     def fit_base_generator(self, sequences, X, previous=None):
         bg_kwargs = dict() if self.bg_kwargs is None else self.bg_kwargs
         gmm_hmm = GmmHmm(
-            n_dim=X.n_input, n_states=self.n_states, n_components=self.n_components,
-            directory=self.directory, **bg_kwargs)
+            n_states=self.n_states, directory=self.directory, **bg_kwargs)
         gmm_hmm.fit(sequences)
         return gmm_hmm
 
@@ -185,7 +183,7 @@ class GmmHmm1x1(GmmHmmBase, OneByOne):
 
 class GmmHmmAgg(GmmHmmBase, Aggregate):
     def __init__(
-            self, n_hidden=2, bg_kwargs=None,
+            self, n_states=2, bg_kwargs=None,
             add_transfer_data=False, directory=None,
             name=None):
         self._init(locals())

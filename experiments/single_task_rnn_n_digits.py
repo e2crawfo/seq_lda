@@ -13,7 +13,7 @@ from pendigits import generate_pendigit_data_single_task
 
 
 if __name__ == "__main__":
-    neural_verbose = False
+    neural_verbose = True
     lda_verbose = True
     use_digits = range(10)
 
@@ -27,24 +27,26 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
     bg_class = dict(rnn=GenerativeRNN, gru=GenerativeGRU, lstm=GenerativeLSTM)[args.bg]
 
-    n_hidden = [25, 50, 75, 100]
+    n_hidden = [2, 12, 22, 32]
     estimators = [
         Neural1x1(
             bg_class,
             n_hidden=nh,
             bg_kwargs=dict(
-                max_epochs=100000, use_dropout=False, patience=3,
-                validFreq=200, verbose=neural_verbose),
+                max_epochs=100000, use_dropout=False, patience=10, valid_pct=0.2,
+                validFreq=200, verbose=neural_verbose, theano_optimizer='fast_compile'),
             name="%s(n_hidden=%s)" % (args.bg, nh))
         for nh in n_hidden]
 
     random_state = np.random.RandomState()
 
     data_kwargs = dict(
-        use_digits=use_digits,
-        max_tasks=20,
-        core_test_wpt=100,
-        permute=True)
+        max_tasks=44,
+        n_train_words=512,
+        n_test_words=512,
+        per_digit=True,
+        permute=True,
+        sample_every=3)
     data_generator = generate_pendigit_data_single_task
     learn_halt = True
 
@@ -59,14 +61,14 @@ if __name__ == "__main__":
         search_kwargs=dict(n_iter=10),
         directory='/data/seq_lda/',
         score=[RMSE_score, _log_likelihood_score],  # , one_norm_score],
-        x_var_name='core_train_wpt',
-        x_var_values=[32, 64, 128, 256, 512, 1024, 2048, 4096],
-        n_repeats=5,
-        name="single_task_rnn_bg=%s" % args.bg)
+        x_var_name='use_digits',
+        x_var_values=[1, 3, 5, 7, 9],
+        n_repeats=10,
+        name="single_task_rnn_bg=%s_use_digits" % args.bg)
 
     quick_exp_kwargs = exp_kwargs.copy()
     quick_exp_kwargs.update(
-        x_var_values=[50, 75, 100, 125, 150, 175, 200], n_repeats=5, search_kwargs=dict(n_iter=1))
+        x_var_values=[1, 2], n_repeats=2, search_kwargs=dict(n_iter=1))
 
     score_display = ['RMSE', 'Log Likelihood']  # , 'Negative One Norm']
     x_var_display = '\# Tasks'

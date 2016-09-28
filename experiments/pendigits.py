@@ -2,18 +2,111 @@ from __future__ import print_function
 import numpy as np
 import seaborn
 from collections import defaultdict
-
+import argparse
 from functools import partial
-
 from sklearn.utils import check_random_state
 
 from spectral_dagger.datasets import pendigits
 from spectral_dagger.utils import run_experiment_and_plot, sample_multinomial
+from spectral_dagger.sequence import GenerativeRNN, GenerativeGRU, GenerativeLSTM
 
-from seq_lda.algorithms import Lstm1x1, LstmAgg, LstmLDA
+from seq_lda.algorithms import Neural1x1, NeuralAgg, NeuralMSSG
 from seq_lda import (
     generate_multitask_sequence_data,
     RMSE_score, log_likelihood_score)  # , one_norm_score)
+
+
+def generate_pendigit_data_single_task(
+        max_tasks=44,
+        n_train_words=0,
+        n_test_words=0,
+        per_digit=True,
+        permute=True,
+        difference=True,
+        sample_every=1,
+        use_digits=None,
+        random_state=None):
+    rng = check_random_state(random_state)
+
+    try:
+        use_digits = int(use_digits)
+        assert use_digits < 11, "Requesting too many digit types: %d." % use_digits
+        use_digits = rng.choice(10, use_digits, replace=False)
+        print("Using digits: ", use_digits)
+    except (ValueError, TypeError):
+        pass
+
+    if use_digits is None:
+        use_digits = range(10)
+
+    if per_digit:
+        data, labels = pendigits.get_data(difference, sample_every, use_digits=use_digits)
+        assert len(data) >= max_tasks
+        if permute:
+            p = rng.permutation(range(len(data)))
+            data = [data[i] for i in p]
+            labels = [labels[i] for i in p]
+
+        data = data[:max_tasks]
+        labels = labels[:max_tasks]
+
+        data = [d for dd in data for d in dd]
+        labels = [l for ll in labels for l in ll]
+        p = rng.permutation(range(len(data)))
+        data = [data[i] for i in p]
+        labels = [labels[i] for i in p]
+
+        final_data = []
+        for digit in use_digits:
+            n_examples = 0
+            for d, l in zip(data, labels):
+                if l == digit:
+                    final_data.append(d)
+                    n_examples += 1
+                    if n_examples >= n_train_words + n_test_words:
+                        break
+        data = rng.permutation(final_data)
+        n_train_words = len(use_digits) * n_train_words
+        n_test_words = len(use_digits) * n_test_words
+    else:
+        data, labels = pendigits.get_data(difference, sample_every, use_digits=use_digits)
+        assert len(data) >= max_tasks
+        if permute:
+            data = rng.permutation(data)
+        data = data[:max_tasks]
+
+        data = [d for dd in data for d in dd]
+        data = rng.permutation(data)
+
+        n_words_per_task = n_train_words + n_test_words
+        assert len(data) >= n_words_per_task
+        data = data[:n_words_per_task]
+
+    if difference:
+        size = 0.0
+        n = 0
+        for seq in data:
+            for s in seq:
+                size += np.linalg.norm(s, ord=2)
+                n += 1
+        print("Average distance: %f" % (size/n))
+
+    # Makes the ndarrays hashable.
+    for seq in data:
+        seq.flags.writeable = False
+
+    to_hashable = lambda x: hash(x.data)
+
+    train_data, test_data = generate_multitask_sequence_data(
+        [data], 1, 0,
+        train_split=(n_train_words, n_test_words), random_state=rng,
+        to_hashable=to_hashable,
+        context=dict(learn_halt=True))
+
+    return (train_data, test_data,
+            dict(max_topics=10,
+                 max_states=30,
+                 max_states_per_topic=10))
 
 
 def generate_pendigit_data(
@@ -29,6 +122,7 @@ def generate_pendigit_data(
         permute=False,
         difference=True,
         sample_every=1,
+        use_digits=None,
         random_state=None):
     rng = check_random_state(random_state)
 
@@ -105,6 +199,9 @@ def generate_pendigit_data_sparse(
 
     if use_digits is None:
         use_digits = range(10)
+    use_digits = sorted(use_digits)
+    idx_map = {i: d for i, d in enumerate(use_digits)}
+
     n_topics = len(use_digits)
 
     rng = check_random_state(random_state)
@@ -155,8 +252,8 @@ def generate_pendigit_data_sparse(
 
         sequences = []
         for j in range(n_words_per_task):
-            idx = sample_multinomial(theta, rng)
-            candidates = quick_dict[idx]
+            digit = idx_map[sample_multinomial(theta, rng)]
+            candidates = quick_dict[digit]
             sequence = candidates[rng.randint(len(candidates))]
             sequences.append(sequence)
 
@@ -185,47 +282,53 @@ seaborn.set(style="white")
 seaborn.set_context(rc={'lines.markeredgewidth': 0.1})
 
 if __name__ == "__main__":
-    lstm_verbose = False
+    neural_verbose = False
     lda_verbose = True
-    use_digits = [0, 1, 2, 3, 4]
+    use_digits = [1, 3]# [0, 1, 2, 3, 4]
 
     def point_distribution(self, context):
         return dict()
 
-    Lstm1x1.point_distribution = point_distribution
-    LstmAgg.point_distribution = point_distribution
+    Neural1x1.point_distribution = point_distribution
+    NeuralAgg.point_distribution = point_distribution
+    NeuralMSSG.point_distribution = point_distribution
 
-    def point_distribution(self, context):
-        return dict(n_topics=[len(use_digits)])
-    LstmLDA.point_distribution = point_distribution
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--bg", type=str, default='rnn', choices=['rnn', 'gru', 'lstm'])
+    args, _ = parser.parse_known_args()
+    bg_class = dict(rnn=GenerativeRNN, gru=GenerativeGRU, lstm=GenerativeLSTM)[args.bg]
 
     estimators = [
-        Lstm1x1(n_hidden=10,
-                lstm_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=lstm_verbose)),
-        LstmAgg(n_hidden=10,
-                lstm_kwargs=dict(max_epochs=100000, use_dropout=False, patience=1, validFreq=200, verbose=lstm_verbose)),
-        LstmLDA(n_hidden=2, n_samples=100, reuse=True,
-                lstm_kwargs=dict(max_epochs=50, use_dropout=False, patience=1, validFreq=200, verbose=lstm_verbose),
-                lda_settings=dict(em_max_iter=30, em_tol=0.01),
-                verbose=lda_verbose)]
-    #  EmPfaLDA(
-    #      n_samples=1000,
-    #      em_kwargs=dict(
-    #          pct_valid=0.0, alg='bw', verbose=hmm_verbose,
-    #          hmm=False, treba_args="--threads=4", n_restarts=1,
-    #          max_iters=10, max_delta=0.5),
-    #      verbose=lda_verbose, name="bw,n_samples=1000,max_iters=10"),
+        Neural1x1(
+            bg_class,
+            n_hidden=2,
+            bg_kwargs=dict(
+                max_epochs=100000, use_dropout=False, patience=10,
+                validFreq=200, verbose=neural_verbose)),
+        NeuralAgg(
+            bg_class,
+            n_hidden=2,
+            bg_kwargs=dict(
+                max_epochs=100000, use_dropout=False, patience=10,
+                validFreq=200, verbose=neural_verbose)),
+        NeuralMSSG(
+            bg_class, n_hidden=2, n_samples=100, n_topics=len(use_digits),
+            bg_kwargs=dict(
+                max_epochs=100000, use_dropout=False, reuse=True,
+                patience=10, validFreq=200, verbose=neural_verbose),
+            #lda_settings=dict(em_max_iter=30, em_tol=0.01),
+            verbose=lda_verbose)]
 
-    random_state = np.random.RandomState(50)
+    random_state = np.random.RandomState()
 
     data_kwargs = dict(
         use_digits=use_digits,
-        max_tasks=20,
-        core_train_wpt=30,
-        core_test_wpt=100,
+        max_tasks=30,
+        core_train_wpt=50,
+        core_test_wpt=50,
         permute=True,
-        alpha=0.05,
-        sample_every=2)
+        alpha=0.01,
+        sample_every=3)
     data_generator = generate_pendigit_data_sparse
     learn_halt = True
 
@@ -246,7 +349,7 @@ if __name__ == "__main__":
 
     quick_exp_kwargs = exp_kwargs.copy()
     quick_exp_kwargs.update(
-        x_var_values=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], n_repeats=5, search_kwargs=dict(n_iter=5))
+        x_var_values=[1, 3, 5], n_repeats=5, search_kwargs=dict(n_iter=5))
 
     score_display = ['RMSE', 'Log Likelihood']  # , 'Negative One Norm']
     x_var_display = '\# Tasks'
