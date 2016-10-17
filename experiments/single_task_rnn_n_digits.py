@@ -27,13 +27,13 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
     bg_class = dict(rnn=GenerativeRNN, gru=GenerativeGRU, lstm=GenerativeLSTM)[args.bg]
 
-    n_hidden = [2, 12, 22, 32]
+    n_hidden = [5, 10, 15, 20]
     estimators = [
         Neural1x1(
             bg_class,
             n_hidden=nh,
             bg_kwargs=dict(
-                max_epochs=100000, use_dropout=False, patience=10, valid_pct=0.2,
+                max_epochs=100000, use_dropout=False, patience=10, valid_pct=0.1,
                 validFreq=200, verbose=neural_verbose, theano_optimizer='fast_compile'),
             name="%s(n_hidden=%s)" % (args.bg, nh))
         for nh in n_hidden]

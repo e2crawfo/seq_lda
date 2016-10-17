@@ -94,7 +94,7 @@ class StatesMixin(object):
 
 class SpectralBase(StatesMixin):
     def fit_base_generator(self, sequences, X, previous=None):
-        bg_kwargs = dict() if self.bg_kwargs is None else self.bg_kwargs
+        bg_kwargs = self.bg_kwargs or dict()
         sa = SpectralSA(self.n_states, X.n_symbols, **bg_kwargs)
         sa.fit(sequences)
         return sa
@@ -115,7 +115,7 @@ class ExpMaxBase(StatesMixin):
     def fit_base_generator(self, sequences, X, previous=None):
         if not X.learn_halt:
             raise Exception("Cannot run EM if ``learn_halt`` False.")
-        bg_kwargs = dict() if self.bg_kwargs is None else self.bg_kwargs
+        bg_kwargs = self.bg_kwargs or dict()
         sa = ExpMaxSA(self.n_states, X.n_symbols, directory=self.directory, **bg_kwargs)
         sa.fit(sequences)
         return sa
@@ -147,11 +147,8 @@ class NeuralBase(object):
     def fit_base_generator(self, sequences, X, previous=None):
         if not X.learn_halt:
             raise Exception("Cannot run Neural if ``learn_halt`` False.")
-        bg_kwargs = dict() if self.bg_kwargs is None else self.bg_kwargs
-        if previous is None:
-            nn = self.nn_class(n_hidden=self.n_hidden, **bg_kwargs)
-        else:
-            nn = previous
+        bg_kwargs = self.bg_kwargs or dict()
+        nn = previous or self.nn_class(n_hidden=self.n_hidden, **bg_kwargs)
 
         nn.fit(sequences)
         return nn
@@ -170,8 +167,8 @@ class NeuralAgg(NeuralBase, Aggregate):
 
 class GmmHmmBase(StatesMixin):
     def fit_base_generator(self, sequences, X, previous=None):
-        bg_kwargs = dict() if self.bg_kwargs is None else self.bg_kwargs
-        gmm_hmm = GmmHmm(
+        bg_kwargs = self.bg_kwargs or dict()
+        gmm_hmm = previous or GmmHmm(
             n_states=self.n_states, directory=self.directory, **bg_kwargs)
         gmm_hmm.fit(sequences)
         return gmm_hmm

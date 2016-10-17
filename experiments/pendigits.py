@@ -21,10 +21,12 @@ def generate_pendigit_data_single_task(
         n_train_words=0,
         n_test_words=0,
         per_digit=True,
-        permute=True,
+        permute_tasks=True,
         difference=True,
         sample_every=1,
+        simplify=None,
         use_digits=None,
+        horizon=None,
         random_state=None):
     rng = check_random_state(random_state)
 
@@ -39,23 +41,36 @@ def generate_pendigit_data_single_task(
     if use_digits is None:
         use_digits = range(10)
 
-    if per_digit:
-        data, labels = pendigits.get_data(difference, sample_every, use_digits=use_digits)
-        assert len(data) >= max_tasks
-        if permute:
-            p = rng.permutation(range(len(data)))
-            data = [data[i] for i in p]
-            labels = [labels[i] for i in p]
+    data, labels = pendigits.get_data(
+        difference, sample_every, use_digits=use_digits, simplify=simplify)
 
-        data = data[:max_tasks]
-        labels = labels[:max_tasks]
-
-        data = [d for dd in data for d in dd]
-        labels = [l for ll in labels for l in ll]
+    assert len(data) >= max_tasks
+    if permute_tasks:
         p = rng.permutation(range(len(data)))
         data = [data[i] for i in p]
         labels = [labels[i] for i in p]
 
+    data = data[:max_tasks]
+    labels = labels[:max_tasks]
+
+    if horizon is not None and horizon is not np.inf:
+        _data, _labels = [], []
+        for dd, ll in zip(data, labels):
+            for d, l in zip(dd, ll):
+                if len(d) >= horizon:
+                    _data.append(d[:horizon])
+                    _labels.append(l)
+        data, labels = _data, _labels
+    else:
+        data = [d for dd in data for d in dd]
+        labels = [l for ll in labels for l in ll]
+
+    p = rng.permutation(range(len(data)))
+    data = [data[i] for i in p]
+    labels = [labels[i] for i in p]
+
+    n_words_per_task = n_train_words + n_test_words
+    if per_digit:
         final_data = []
         for digit in use_digits:
             n_examples = 0
@@ -63,22 +78,16 @@ def generate_pendigit_data_single_task(
                 if l == digit:
                     final_data.append(d)
                     n_examples += 1
-                    if n_examples >= n_train_words + n_test_words:
+                    if n_examples >= n_words_per_task:
                         break
+
+            if n_examples < n_words_per_task:
+                raise Exception("Not enough digits with label %s" % digit)
+
         data = rng.permutation(final_data)
         n_train_words = len(use_digits) * n_train_words
         n_test_words = len(use_digits) * n_test_words
     else:
-        data, labels = pendigits.get_data(difference, sample_every, use_digits=use_digits)
-        assert len(data) >= max_tasks
-        if permute:
-            data = rng.permutation(data)
-        data = data[:max_tasks]
-
-        data = [d for dd in data for d in dd]
-        data = rng.permutation(data)
-
-        n_words_per_task = n_train_words + n_test_words
         assert len(data) >= n_words_per_task
         data = data[:n_words_per_task]
 

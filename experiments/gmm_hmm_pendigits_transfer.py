@@ -1,6 +1,5 @@
 from __future__ import print_function
 import numpy as np
-import seaborn
 from collections import defaultdict
 from functools import partial
 from sklearn.utils import check_random_state
@@ -114,6 +113,7 @@ def generate_pendigit_data_sparse(
 
     to_hashable = lambda x: hash(x.data)
 
+
     train_data, test_data = generate_multitask_sequence_data(
         all_sequences, n_train_tasks, n_transfer_tasks,
         train_split=(core_train_wpt, core_test_wpt),
@@ -126,10 +126,6 @@ def generate_pendigit_data_sparse(
             dict(max_topics=n_topics,
                  max_states=30,
                  max_states_per_topic=10))
-
-
-seaborn.set(style="white")
-seaborn.set_context(rc={'lines.markeredgewidth': 0.1})
 
 if __name__ == "__main__":
     gmm_hmm_verbose = False
@@ -144,7 +140,7 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
 
     def point_distribution(self, context):
-        return dict(n_topics=[len(use_digits)])#, n_states=range(2, int(context['max_states_per_topic'])))
+        return dict()#dict(n_topics=[len(use_digits)]), n_states=range(2, int(context['max_states_per_topic'])))
     GmmHmmMSSG.point_distribution = point_distribution
 
     # def point_distribution(self, context):
@@ -153,35 +149,35 @@ if __name__ == "__main__":
     # GmmHmmAgg.point_distribution = point_distribution
 
     estimators = [
-        GmmHmmMSSG(n_states=4, n_samples_scale=3, name="GmmHmmMSSG(n_states=4)",
+        GmmHmmMSSG(n_states=10, n_samples_scale=3, n_topics=2, name="GmmHmmMSSG(n_states=10)",
             bg_kwargs=dict(
                 n_dim=2, n_components=1, max_iter=100,
                 verbose=gmm_hmm_verbose, careful=True, cov_type='full',
                 left_to_right=True, reuse=False, n_restarts=5, max_attempts=1),
             lda_settings=dict(em_max_iter=30, em_tol=0.01),
             verbose=lda_verbose),
-        GmmHmm1x1(n_states=10,
-                  bg_kwargs=dict(
-                      n_components=1, n_dim=2, cov_type='full',
-                      max_iter=30, verbose=gmm_hmm_verbose)),
-        GmmHmmAgg(n_states=10,
-                  bg_kwargs=dict(
-                      n_components=1, n_dim=2, cov_type='full',
-                      max_iter=30, verbose=gmm_hmm_verbose))]
+        GmmHmm1x1(bg_kwargs=dict(
+                      n_components=1, n_dim=2, cov_type='full', careful=True,
+                      max_iter=30, verbose=gmm_hmm_verbose, n_restarts=5)),
+        GmmHmmAgg(bg_kwargs=dict(
+                      n_components=1, n_dim=2, cov_type='full', careful=True,
+                      max_iter=30, verbose=gmm_hmm_verbose, n_restarts=5))]
 
     random_state = np.random.RandomState()
 
     data_kwargs = dict(
         use_digits=use_digits,
-        max_tasks=30,
-        core_train_wpt=20,
-        core_test_wpt=100,
+        max_tasks=10,
+        n_transfer_tasks=5,
+        core_train_wpt=args.core_train_wpt,
+        transfer_train_wpt=10,
+        transfer_test_wpt=100,
         alpha=args.alpha,
-        horizon=5,
+        horizon=args.horizon,
         sample_every=3,
         simplify=5)
     data_generator = generate_pendigit_data_sparse
-    learn_halt = True
+    learn_halt = False
 
     _log_likelihood_score = partial(
         log_likelihood_score, string=learn_halt)
@@ -195,7 +191,7 @@ if __name__ == "__main__":
         directory='/data/seq_lda/',
         score=[RMSE_score, _log_likelihood_score],  # , one_norm_score],
         x_var_name='n_train_tasks',
-        x_var_values=range(1, 21, 2),
+        x_var_values=range(1, 10),
         n_repeats=5)
 
     quick_exp_kwargs = exp_kwargs.copy()

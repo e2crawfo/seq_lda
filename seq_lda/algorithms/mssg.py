@@ -1,5 +1,6 @@
 from __future__ import print_function
 import abc
+import os
 import numpy as np
 from sklearn.utils import check_random_state
 
@@ -7,7 +8,7 @@ from spectral_dagger.utils import normalize, Estimator
 from spectral_dagger.sequence import sample_words
 
 from seq_lda import (
-    SequentialLDA, fit_callback_lda, lda_inference)
+    SequentialLDA, fit_callback_lda, lda_inference, write_settings)
 from seq_lda.algorithms.baseline import (
     MarkovBase, SpectralBase, ExpMaxBase, NeuralBase, GmmHmmBase)
 
@@ -16,8 +17,8 @@ LOG_ZERO = -10000
 
 class MSSG(SequentialLDA, Estimator):
     def __init__(
-            self, n_topics=1, n_samples=100,
-            bg_kwargs=None, directory=None, name=None,
+            self, n_topics=1, n_samples=100, n_samples_scale=None,
+            bg_kwargs=None, lda_settings=None, directory=None, name=None,
             random_state=None, verbose=False):
         self._init(locals())
 
@@ -34,8 +35,7 @@ class MSSG(SequentialLDA, Estimator):
         raise NotImplementedError()
 
     def fit(self, X, y=None):
-        """ X is instance of ``MultitaskSequenceDataset``
-            with a ``dictionary`` attr.  """
+        """ X is instance of ``MultitaskSequenceDataset``.  """
         random_state = check_random_state(self.random_state)
 
         self.record_indices(X.indices)
@@ -54,8 +54,12 @@ class MSSG(SequentialLDA, Estimator):
             self.base_generators_ = []
 
             for k, dist in enumerate(class_word):
-                data, _ = sample_words(
-                    self.n_samples, dist, training_words, random_state)
+                if self.n_samples_scale is not None:
+                    n_samples = int(self.n_samples_scale * len(dist))
+                else:
+                    n_samples = self.n_samples
+
+                data, _ = sample_words(n_samples, dist, training_words, random_state)
 
                 if old_bgs is None:
                     bg = self.fit_base_generator(data, X)
@@ -73,19 +77,17 @@ class MSSG(SequentialLDA, Estimator):
             log_prob_w[np.isnan(log_prob_w)] = LOG_ZERO
             log_prob_w[np.isinf(log_prob_w)] = LOG_ZERO
 
-            self.first_fit = False
-
             return log_prob_w
 
-        # settings = None
-        # if self.lda_settings is not None:
-        #     settings = os.path.join(self.directory, 'settings.txt')
-        #     write_settings(settings, **self.lda_settings)
+        settings = None
+        if self.lda_settings is not None:
+            settings = os.path.join(self.directory, 'settings.txt')
+            write_settings(settings, **self.lda_settings)
 
         self.alpha_, _, self.gamma_ = fit_callback_lda(
             corpus, self.directory, self.n_topics,
             n_word_types, callback,
-            # settings=settings,
+            settings=settings,
             log_name="" if self.verbose else ("%s.log" % self.name))
 
         if X.n_transfer > 0:
@@ -111,31 +113,31 @@ class MarkovMSSG(MarkovBase, MSSG):
 
 class SpectralMSSG(SpectralBase, MSSG):
     def __init__(
-            self, n_states=2, n_topics=1, n_samples=100,
-            bg_kwargs=None, directory=None, name=None,
+            self, n_states=2, n_topics=1, n_samples=100, n_samples_scale=None,
+            bg_kwargs=None, lda_settings=None, directory=None, name=None,
             random_state=None, verbose=False):
         self._init(locals())
 
 
 class ExpMaxMSSG(ExpMaxBase, MSSG):
     def __init__(
-            self, n_states=2, n_topics=1, n_samples=100,
-            bg_kwargs=None, directory=None, name=None,
+            self, n_states=2, n_topics=1, n_samples=100, n_samples_scale=None,
+            bg_kwargs=None, lda_settings=None, directory=None, name=None,
             random_state=None, verbose=False):
         self._init(locals())
 
 
 class NeuralMSSG(NeuralBase, MSSG):
     def __init__(
-            self, nn_class, n_hidden=2, n_topics=1, n_samples=100,
-            bg_kwargs=None, directory=None, name=None,
+            self, nn_class, n_hidden=2, n_topics=1, n_samples=100, n_samples_scale=None,
+            bg_kwargs=None, lda_settings=None, directory=None, name=None,
             random_state=None, verbose=False):
         self._init(locals())
 
 
 class GmmHmmMSSG(GmmHmmBase, MSSG):
     def __init__(
-            self, n_states=2, n_topics=1, n_samples=100,
-            bg_kwargs=None, directory=None, name=None,
+            self, n_states=2, n_topics=1, n_samples=100, n_samples_scale=None,
+            bg_kwargs=None, lda_settings=None, directory=None, name=None,
             random_state=None, verbose=False):
         self._init(locals())

@@ -274,7 +274,6 @@ if __name__ == "__main__":
 
     def point_distribution(self, context):
         return dict()
-
     GmmHmm1x1.point_distribution = point_distribution
     GmmHmmMSSG.point_distribution = point_distribution
 
@@ -298,8 +297,11 @@ if __name__ == "__main__":
     #     horizon=args.horizon)
     # data_generator = generate_cts_ihmm_synthetic_data
     data_kwargs = dict(
+        n_transfer_tasks=5,
         core_train_wpt=args.core_train_wpt,
-        core_test_wpt=1000,
+        core_test_wpt=0,
+        transfer_train_wpt=10,
+        transfer_test_wpt=100,
         alpha=args.alpha,
         noise=0.05,
         n_topics=n_topics,
@@ -316,13 +318,13 @@ if __name__ == "__main__":
             bg_kwargs=dict(
                 n_dim=n_dim, n_components=1,
                 max_iter=1000, thresh=1e-4, verbose=0, cov_type='spherical',
-                careful=True)),
+                careful=True, n_restarts=1)),
         GmmHmm1x1(
             n_states=n_states,
             bg_kwargs=dict(
                 n_dim=n_dim, n_components=1,
                 max_iter=1000, thresh=1e-4, verbose=0, cov_type='spherical',
-                careful=True)),
+                careful=True, n_restarts=1)),
         GmmHmmMSSG(
             n_states=n_states,
             n_samples_scale=2,
@@ -330,7 +332,7 @@ if __name__ == "__main__":
             bg_kwargs=dict(
                 n_dim=n_dim, n_components=1,
                 max_iter=1000, thresh=1e-4, verbose=0, cov_type='spherical',
-                careful=True),
+                careful=True, n_restarts=1),
             verbose=lda_verbose)]
 
     _log_likelihood_score = partial(
@@ -346,7 +348,7 @@ if __name__ == "__main__":
         score=[RMSE_score, _log_likelihood_score],  # , one_norm_score],
         x_var_name='n_train_tasks',
         x_var_values=range(1, 21, 2),
-        n_repeats=5)
+        n_repeats=10)
 
     quick_exp_kwargs = exp_kwargs.copy()
     quick_exp_kwargs.update(
