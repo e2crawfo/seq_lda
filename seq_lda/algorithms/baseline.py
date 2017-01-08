@@ -83,8 +83,9 @@ class StatesMixin(object):
     def __init__(self, n_states=1, bg_kwargs=None, directory=None, name=None):
         self._init(locals())
 
+    @property
     def record_attrs(self):
-        return super(StatesMixin, self).record_attrs() or set(['n_states'])
+        return super(StatesMixin, self).record_attrs or set(['n_states'])
 
     def point_distribution(self, context):
         pd = super(StatesMixin, self).point_distribution(context)
@@ -137,7 +138,7 @@ class NeuralBase(object):
         self._init(locals())
 
     def record_attrs(self):
-        return super(NeuralBase, self).record_attrs() or set(['n_hidden'])
+        return super(NeuralBase, self).record_attrs or set(['n_hidden'])
 
     def point_distribution(self, context):
         pd = super(NeuralBase, self).point_distribution(context)

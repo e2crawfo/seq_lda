@@ -22,8 +22,9 @@ class MSSG(SequentialLDA, Estimator):
             random_state=None, verbose=False):
         self._init(locals())
 
+    @property
     def record_attrs(self):
-        return super(MSSG, self).record_attrs() or set(['n_topics'])
+        return super(MSSG, self).record_attrs or set(['n_topics'])
 
     def point_distribution(self, context):
         pd = super(MSSG, self).point_distribution(context)
