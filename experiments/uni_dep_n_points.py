@@ -9,7 +9,7 @@ from spectral_dagger.utils import run_experiment_and_plot
 
 from seq_lda.algorithms import (
     MarkovLDA, Markov1x1, MarkovAgg,
-    Spectral1x1, SpectralAgg, EmPfaLDA, ExpMax1x1, ExpMaxAgg)
+    Spectral1x1, SpectralAgg, ExpMaxMSSG, ExpMax1x1, ExpMaxAgg)
 from seq_lda import (
     word_correct_rate, log_likelihood_score, one_norm_score)
 
@@ -25,41 +25,41 @@ if __name__ == "__main__":
 
     estimators = [
         Spectral1x1(), SpectralAgg(),
-        EmPfaLDA(
+        ExpMaxMSSG(
             n_samples=1000,
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, alg='bw', verbose=hmm_verbose,
                 hmm=False, treba_args="--threads=4", n_restarts=1,
                 max_iters=10, max_delta=0.5),
             verbose=lda_verbose, name="bw,n_samples=1000,max_iters=10"),
-        EmPfaLDA(
+        ExpMaxMSSG(
             n_samples=1000,
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, alg='bw', verbose=hmm_verbose,
                 hmm=False, treba_args="--threads=4", n_restarts=1,
                 max_iters=1000, max_delta=0.5),
             verbose=lda_verbose, name="bw,n_samples=1000,max_iters=1000"),
         ExpMax1x1(
             name="ExpMax1x1",
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, hmm=False,
                 treba_args="--threads=4", n_restarts=1,
                 max_iters=1000, max_delta=0.5)),
         ExpMax1x1(
             name="ExpMax1x1,max_iters=10",
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, hmm=False,
                 treba_args="--threads=4", n_restarts=1,
                 max_iters=10, max_delta=0.5)),
         ExpMaxAgg(
             name="ExpMaxAgg",
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, hmm=False,
                 treba_args="--threads=4", n_restarts=1,
                 max_iters=1000, max_delta=0.5)),
         ExpMaxAgg(
             name="ExpMaxAgg,max_iters=10",
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, hmm=False,
                 treba_args="--threads=4", n_restarts=1,
                 max_iters=10, max_delta=0.5))]

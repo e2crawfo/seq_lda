@@ -128,7 +128,7 @@ class ExpMax1x1(ExpMaxBase, OneByOne):
 
 class ExpMaxAgg(ExpMaxBase, Aggregate):
     def __init__(
-            self, n_states=1, bg_kwargs=None, directory=None, name=None):
+            self, n_states=1, bg_kwargs=None, directory=None, add_transfer_data=False, name=None):
         self._init(locals())
 
 

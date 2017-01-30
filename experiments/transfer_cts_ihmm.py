@@ -96,7 +96,7 @@ def generate_cts_ihmm_synthetic_data_hard(
             _T += random_state.uniform(0.0, noise, size=_T.shape)
             _T = normalize(_T, ord=1, axis=1)
 
-            hmm = GmmHmm(parameters=dict(pi=_pi, T=_T, mu=mu, sigma=sigma, M=M))
+            hmm = GmmHmm(initial_params=dict(pi=_pi, T=_T, mu=mu, sigma=sigma, M=M))
             hmms_for_task.append(hmm)
 
         generator = MixtureSeqGen(tc, hmms_for_task)
@@ -236,7 +236,7 @@ def generate_cts_ihmm_synthetic_data(
             _mu[mu_noise_mask > 0] += (
                 random_state.uniform(0.0, noise, size=_mu.shape)[mu_noise_mask > 0])
 
-            hmm = GmmHmm(parameters=dict(pi=pi[idx], T=_T, mu=_mu, sigma=sigma[idx], M=M[idx]))
+            hmm = GmmHmm(initial_params=dict(pi=pi[idx], T=_T, mu=_mu, sigma=sigma[idx], M=M[idx]))
             hmms_for_task.append(hmm)
 
         generator = MixtureSeqGen(tc, hmms_for_task)

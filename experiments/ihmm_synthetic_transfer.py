@@ -7,7 +7,7 @@ import argparse
 from spectral_dagger.utils import run_experiment_and_plot
 
 from seq_lda.algorithms import (
-    Spectral1x1, SpectralAgg, EmPfaLDA, ExpMax1x1, ExpMaxAgg)
+    Spectral1x1, SpectralAgg, ExpMaxMSSG, ExpMax1x1, ExpMaxAgg)
 from seq_lda import (
     word_correct_rate, log_likelihood_score, one_norm_score)
 
@@ -18,34 +18,35 @@ seaborn.set(style="white")
 seaborn.set_context(rc={'lines.markeredgewidth': 0.1})
 
 random_state = np.random.RandomState(4)
+data_directory = '/data/seq_lda/'
 
 if __name__ == "__main__":
     hmm_verbose = False
     lda_verbose = False
 
     estimators = [
-        EmPfaLDA(
+        ExpMaxMSSG(
             n_samples=1000,
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, alg='bw', verbose=hmm_verbose,
                 hmm=False, treba_args="--threads=4", n_restarts=1,
                 max_iters=10, max_delta=0.5),
             verbose=lda_verbose, name="bw,n_samples=1000"),
         ExpMax1x1(
             name="ExpMax1x1",
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, hmm=False,
                 treba_args="--threads=4", n_restarts=1,
                 max_iters=10, max_delta=0.5)),
         ExpMaxAgg(
             name="ExpMaxAgg,with_transfer=True",
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, hmm=False,
                 treba_args="--threads=4", n_restarts=1,
                 max_iters=10, max_delta=0.5), add_transfer_data=True),
         ExpMaxAgg(
             name="ExpMaxAgg,with_transfer=False",
-            em_kwargs=dict(
+            bg_kwargs=dict(
                 pct_valid=0.0, hmm=False,
                 treba_args="--threads=4", n_restarts=1,
                 max_iters=10, max_delta=0.5), add_transfer_data=False)]
@@ -78,7 +79,7 @@ if __name__ == "__main__":
         generate_data=data_generator,
         data_kwargs=data_kwargs,
         search_kwargs=dict(n_iter=10),
-        directory='/data/seq_lda/',
+        directory=data_directory,
         score=[word_correct_rate, _log_likelihood_score, one_norm_score],
         x_var_name='n_train_tasks',
         x_var_values=range(1, 21),
@@ -86,7 +87,7 @@ if __name__ == "__main__":
 
     quick_exp_kwargs = exp_kwargs.copy()
     quick_exp_kwargs.update(
-        x_var_values=[5, 6], n_repeats=2, search_kwargs=dict(n_iter=2))
+        x_var_values=[5, 6, 7], n_repeats=2, search_kwargs=dict(n_iter=2))
 
     score_display = [
         'Correct Prediction Rate',

@@ -3,6 +3,7 @@ from collections import defaultdict, Counter
 import six
 import abc
 import os
+from pkg_resources import Requirement, resource_filename
 
 from sklearn.utils import check_random_state
 from sklearn.cross_validation import train_test_split
@@ -11,12 +12,12 @@ from spectral_dagger.sequence import AdjustedMarkovChain
 from spectral_dagger.sequence import MixtureSeqGen
 from spectral_dagger.utils import sample_multinomial, normalize
 
-
+import seq_lda
 import seq_lda._seq_lda
 
 
-EST_SETTINGS = "/home/eric/seq_lda/seq_lda/_seq_lda/settings.txt"
-INF_SETTINGS = "/home/eric/seq_lda/seq_lda/_seq_lda/inf-settings.txt"
+EST_SETTINGS = os.path.join(os.path.dirname(seq_lda.__file__), "em_settings.txt")
+INF_SETTINGS = os.path.join(os.path.dirname(seq_lda.__file__), "inference_settings.txt")
 
 
 class BowCorpus(object):

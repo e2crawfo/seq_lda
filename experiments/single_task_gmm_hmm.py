@@ -52,7 +52,7 @@ def generate_cts_ihmm_synthetic_data_single_task(
 
     M = np.ones((n_states, n_components))
 
-    hmm = GmmHmm(parameters=dict(pi=pi, T=T, mu=mu, sigma=sigma, M=M))
+    hmm = GmmHmm(initial_params=dict(pi=pi, T=T, mu=mu, sigma=sigma, M=M))
     sequences = hmm.sample_episodes(
         n_train + n_test, horizon=horizon, random_state=random_state)
 

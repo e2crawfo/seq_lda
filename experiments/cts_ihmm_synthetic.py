@@ -13,6 +13,7 @@ from seq_lda import (
     RMSE_score, log_likelihood_score)
 
 random_state = np.random.RandomState(2)
+data_directory = '/data/seq_lda/'
 
 
 def generate_cts_ihmm_synthetic_data_hard(
@@ -96,7 +97,7 @@ def generate_cts_ihmm_synthetic_data_hard(
             _T += random_state.uniform(0.0, noise, size=_T.shape)
             _T = normalize(_T, ord=1, axis=1)
 
-            hmm = GmmHmm(parameters=dict(pi=_pi, T=_T, mu=mu, sigma=sigma, M=M))
+            hmm = GmmHmm(initial_params=dict(pi=_pi, T=_T, mu=mu, sigma=sigma, M=M))
             hmms_for_task.append(hmm)
 
         generator = MixtureSeqGen(tc, hmms_for_task)
@@ -236,7 +237,7 @@ def generate_cts_ihmm_synthetic_data(
             _mu[mu_noise_mask > 0] += (
                 random_state.uniform(0.0, noise, size=_mu.shape)[mu_noise_mask > 0])
 
-            hmm = GmmHmm(parameters=dict(pi=pi[idx], T=_T, mu=_mu, sigma=sigma[idx], M=M[idx]))
+            hmm = GmmHmm(initial_params=dict(pi=pi[idx], T=_T, mu=_mu, sigma=sigma[idx], M=M[idx]))
             hmms_for_task.append(hmm)
 
         generator = MixtureSeqGen(tc, hmms_for_task)
@@ -342,7 +343,7 @@ if __name__ == "__main__":
         generate_data=data_generator,
         data_kwargs=data_kwargs,
         search_kwargs=dict(n_iter=10),
-        directory='/data/seq_lda/',
+        directory=data_directory,
         score=[RMSE_score, _log_likelihood_score],  # , one_norm_score],
         x_var_name='n_train_tasks',
         x_var_values=range(1, 21, 2),
@@ -350,7 +351,7 @@ if __name__ == "__main__":
 
     quick_exp_kwargs = exp_kwargs.copy()
     quick_exp_kwargs.update(
-        x_var_values=[2, 3], n_repeats=1, search_kwargs=dict(n_iter=2))
+        x_var_values=[2, 3, 4], n_repeats=2, search_kwargs=dict(n_iter=2))
 
     score_display = ['RMSE', 'Log Likelihood']  # , 'Negative One Norm']
     # x_var_display = '\# Training Samples per Task'
