@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from spectral_dagger.utils import Estimator
+from spectral_dagger import Estimator
 
 from seq_lda import fit_lda, lda_inference, LDA
 

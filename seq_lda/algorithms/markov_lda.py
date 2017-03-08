@@ -2,10 +2,9 @@ from __future__ import print_function
 import numpy as np
 
 from spectral_dagger.sequence import AdjustedMarkovChain
-from spectral_dagger.utils import Estimator
+from spectral_dagger import Estimator
 
-from seq_lda import (
-    fit_markov_lda, lda_inference, SequentialLDA)
+from seq_lda import fit_markov_lda, lda_inference, SequentialLDA
 
 
 def generate_markov_chains(

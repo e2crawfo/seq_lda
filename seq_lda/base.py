@@ -6,7 +6,10 @@ import os
 from pkg_resources import Requirement, resource_filename
 
 from sklearn.utils import check_random_state
-from sklearn.cross_validation import train_test_split
+try:
+    from sklearn.model_selection import train_test_split
+except ImportError:
+    from sklearn.grid_search import train_test_split
 
 from spectral_dagger.sequence import AdjustedMarkovChain
 from spectral_dagger.sequence import MixtureSeqGen
@@ -30,6 +33,15 @@ class BowCorpus(object):
         self.n_tokens = [sum(wc) for wc in word_counts]
         self.dictionary = dictionary
         self.all_indices = sorted(set([i for wi in word_indices for i in wi]))
+
+    def merge_documents(self):
+        word_counts = defaultdict(int)
+        for wi, wc in zip(self.word_indices, self.word_counts):
+            for i, c in zip(wi, wc):
+                word_counts[i] += c
+
+        word_counts, word_indices = zip(*sorted(word_counts.items(), key=lambda x: x[0]))
+        return BowCorpus([list(word_counts)], [list(word_indices)], self.dictionary)
 
     def normalized_word_indices(self):
         nwi_map = {i: n for n, i in enumerate(self.all_indices)}
@@ -180,12 +192,12 @@ class MultitaskSequenceDataset(object):
 
     Parameters
     ----------
-    core: array-like
+    core: list of BowCorpus instances
         Core data.
     core_indices: list of int
         Indices/labels for the datasets in ``core``.
-    transfer: array-like
-        transfer data.
+    transfer: list of BowCorpus instances
+        Transfer data.
     transfer_indices: list of int
         Indices/labels for the datasets in ``transfer``.
     context: dict
@@ -294,6 +306,29 @@ class MultitaskSequenceDataset(object):
     @property
     def transfer(self):
         return zip(self.transfer_indices, self.transfer_data)
+
+    def subset(self, core_indices, transfer_indices):
+        # Return a MultitaskSequenceDataset object that contains
+        # a subset of the tasks contained in this one.
+
+        core_set = set(core_indices)
+        core_keep = sorted([i for i, ci in enumerate(self.core_indices) if ci in core_set])
+
+        _core_indices = [self.core_indices[i] for i in core_keep]
+        _core_data = [self.core_data[i] for i in core_keep]
+
+        transfer_set = set(transfer_indices)
+        transfer_keep = sorted([i for i, ci in enumerate(self.transfer_indices) if ci in transfer_set])
+
+        _transfer_indices = [self.transfer_indices[i] for i in transfer_keep]
+        _transfer_data = [self.transfer_data[i] for i in transfer_keep]
+
+        return MultitaskSequenceDataset(
+            core_data=_core_data,
+            core_indices=_core_indices,
+            transfer_data=_transfer_data,
+            transfer_indices=_transfer_indices,
+            **self.context)
 
 
 # Tasks:

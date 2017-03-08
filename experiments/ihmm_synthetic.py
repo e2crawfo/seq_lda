@@ -1,16 +1,17 @@
 from __future__ import print_function
 import numpy as np
 import seaborn
-import argparse
 
 from functools import partial
 
+from sklearn.base import clone
 from sklearn.utils import check_random_state
 
 from spectral_dagger.utils import run_experiment_and_plot, normalize
 from spectral_dagger.sequence import HMM, MixtureSeqGen
+from spectral_dagger.sequence import ExpMaxSA
 
-from seq_lda.algorithms import ExpMaxMSSG, ExpMax1x1, ExpMaxAgg
+from seq_lda.algorithms import MSSG, SingleMSSG, OneByOne, Aggregate
 from seq_lda import (
     generate_multitask_sequence_data, GenericMultitaskPredictor,
     word_correct_rate, log_likelihood_score, one_norm_score)
@@ -24,7 +25,7 @@ data_directory = '/data/seq_lda/'
 
 
 def generate_ihmm_synthetic_data(
-        n_train_tasks=0,
+        n_core_tasks=0,
         n_transfer_tasks=0,
         n_test_tasks=0,
         core_train_wpt=0,
@@ -88,7 +89,7 @@ def generate_ihmm_synthetic_data(
         [[1, 1, 1, 1, 1, 0, 0, 0],
          [0, 0, 0, 1, 1, 1, 1, 1]])
 
-    n_tasks = n_train_tasks + n_transfer_tasks + n_test_tasks
+    n_tasks = n_core_tasks + n_transfer_tasks + n_test_tasks
     task_coefficients = random_state.dirichlet(alpha, n_tasks)
 
     n_symbols = 8
@@ -121,13 +122,12 @@ def generate_ihmm_synthetic_data(
 
         sequences = generator.sample_episodes(
             n_words_per_task, horizon=horizon, random_state=random_state)
-
         all_sequences.append(sequences)
 
     ground_truth = GenericMultitaskPredictor(generators, name="Ground Truth")
 
     train_data, test_data = generate_multitask_sequence_data(
-        all_sequences, n_train_tasks, n_transfer_tasks,
+        all_sequences, n_core_tasks, n_transfer_tasks,
         train_split=(core_train_wpt, core_test_wpt),
         transfer_split=(transfer_train_wpt, transfer_test_wpt),
         test_wpt=test_wpt, random_state=random_state,
@@ -136,49 +136,52 @@ def generate_ihmm_synthetic_data(
 
     return (train_data, test_data,
             dict(n_symbols=n_symbols, max_topics=6,
-                 max_states=20, max_states_per_topic=5,
-                 true_model=ground_truth))
+                 max_states=5, true_model=ground_truth))
 
 
-if __name__ == "__main__":
-    hmm_verbose = False
-    lda_verbose = False
+def main(
+        alpha=0.1,
+        noise=0.05,
+        horizon=0,
+        n_core_tasks=0,
+        n_transfer_tasks=0,
+        n_test_tasks=0,
+        core_train_wpt=15,
+        core_test_wpt=200,
+        transfer_train_wpt=0,
+        transfer_test_wpt=0,
+        test_wpt=0,
+        hmm_verbose=0,
+        lda_verbose=0,
+        random_state=None):
+
+    data_kwargs = locals()
+    del data_kwargs['random_state']
+    del data_kwargs['hmm_verbose']
+    del data_kwargs['lda_verbose']
+
+    n_obs = 8
+    sa_kwargs = dict(
+        n_observations=n_obs, n_states=2,
+        pct_valid=0.0, alg='bw', verbose=hmm_verbose,
+        hmm=False, treba_args="--threads=1", n_restarts=1,
+        max_iters=10, max_delta=0.5)
+
+    mixture = SingleMSSG(
+        bg=ExpMaxSA(**sa_kwargs),
+        n_samples=1000,
+        verbose=lda_verbose, name="Mixture")
 
     estimators = [
-        ExpMaxMSSG(
+        MSSG(
+            bg=ExpMaxSA(**sa_kwargs),
             n_samples=1000,
-            bg_kwargs=dict(
-                pct_valid=0.0, alg='bw', verbose=hmm_verbose,
-                hmm=False, treba_args="--threads=4", n_restarts=1,
-                max_iters=10, max_delta=0.5),
-            verbose=lda_verbose, name="bw,n_samples=1000,max_iters=10"),
-        ExpMax1x1(
-            name="ExpMax1x1,max_iters=10",
-            bg_kwargs=dict(
-                pct_valid=0.0, hmm=False,
-                treba_args="--threads=4", n_restarts=1,
-                max_iters=10, max_delta=0.5)),
-        ExpMaxAgg(
-            name="ExpMaxAgg,max_iters=10",
-            bg_kwargs=dict(
-                pct_valid=0.0, hmm=False,
-                treba_args="--threads=4", n_restarts=1,
-                max_iters=10, max_delta=0.5))]
-
-    random_state = np.random.RandomState(101)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--alpha", type=float, default=0.01)
-    parser.add_argument("--core-train-wpt", type=int, default=15)
-    args, _ = parser.parse_known_args()
-
-    horizon = 0
-    data_kwargs = dict(
-        core_train_wpt=args.core_train_wpt,
-        core_test_wpt=100,
-        alpha=args.alpha,
-        noise=0.05,
-        horizon=horizon)
+            verbose=lda_verbose, name="ExpMaxMSSG"),
+        OneByOne(bg=clone(mixture), name="ExpMaxMSSGAgg"),
+        Aggregate(bg=clone(mixture), name="ExpMaxMSSG1x1"),
+        OneByOne(bg=ExpMaxSA(**sa_kwargs), name="ExpMax1x1"),
+        Aggregate(bg=ExpMaxSA(**sa_kwargs), name="ExpMaxAgg")
+    ]
 
     data_generator = generate_ihmm_synthetic_data
 
@@ -193,8 +196,8 @@ if __name__ == "__main__":
         search_kwargs=dict(n_iter=10),
         directory=data_directory,
         score=[word_correct_rate, _log_likelihood_score, one_norm_score],
-        x_var_name='n_train_tasks',
-        x_var_values=range(1, 21),
+        x_var_name='n_core_tasks',
+        x_var_values=range(1, 31, 2),
         n_repeats=10)
 
     quick_exp_kwargs = exp_kwargs.copy()
@@ -214,3 +217,8 @@ if __name__ == "__main__":
         random_state=random_state,
         x_var_display=x_var_display,
         score_display=score_display, title=title)
+
+
+if __name__ == "__main__":
+    from clify import command_line
+    command_line(main)()
