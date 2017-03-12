@@ -152,15 +152,18 @@ def main(
         transfer_train_wpt=0,
         transfer_test_wpt=0,
         test_wpt=0,
+        x_var_max=31,
+        x_var_min=1,
+        x_var_step=2,
+        n_repeats=10,
         hmm_verbose=0,
         lda_verbose=0,
         random_state=None):
 
-    data_kwargs = locals()
-    del data_kwargs['random_state']
-    del data_kwargs['hmm_verbose']
-    del data_kwargs['lda_verbose']
-    del data_kwargs['name']
+    data_kwargs = locals().copy()
+    non_data = 'random_state hmm_verbose lda_verbose name x_var_min x_var_max x_var_step n_repeats'
+    for attr in non_data.split():
+        del data_kwargs[attr]
 
     n_obs = 8
     sa_kwargs = dict(
@@ -198,6 +201,8 @@ def main(
         log_likelihood_score, string=(horizon == np.inf or horizon == 0))
     _log_likelihood_score.__name__ = "log_likelihood"
 
+    x_var_values = range(x_var_min, x_var_max, x_var_step)
+
     exp_kwargs = dict(
         mode='data', base_estimators=estimators,
         generate_data=data_generator,
@@ -207,8 +212,8 @@ def main(
         score=[word_correct_rate, _log_likelihood_score, one_norm_score],
         x_var_name='n_core_tasks',
         name=name,
-        x_var_values=range(1, 31, 2),
-        n_repeats=10)
+        x_var_values=x_var_values,
+        n_repeats=n_repeats)
 
     quick_exp_kwargs = exp_kwargs.copy()
     quick_exp_kwargs.update(
