@@ -140,6 +140,7 @@ def generate_ihmm_synthetic_data(
 
 
 def main(
+        name="ihmm_synthetic",
         alpha=0.1,
         noise=0.05,
         horizon=0,
@@ -159,6 +160,7 @@ def main(
     del data_kwargs['random_state']
     del data_kwargs['hmm_verbose']
     del data_kwargs['lda_verbose']
+    del data_kwargs['name']
 
     n_obs = 8
     sa_kwargs = dict(
@@ -177,11 +179,18 @@ def main(
             bg=ExpMaxSA(**sa_kwargs),
             n_samples=1000,
             verbose=lda_verbose, name="ExpMaxMSSG"),
-        OneByOne(bg=clone(mixture), name="ExpMaxMSSGAgg"),
-        Aggregate(bg=clone(mixture), name="ExpMaxMSSG1x1"),
+        OneByOne(bg=clone(mixture), name="ExpMaxMSSG1x1"),
         OneByOne(bg=ExpMaxSA(**sa_kwargs), name="ExpMax1x1"),
+        Aggregate(bg=clone(mixture), name="ExpMaxMSSGAgg"),
         Aggregate(bg=ExpMaxSA(**sa_kwargs), name="ExpMaxAgg")
     ]
+
+    if n_transfer_tasks > 0:
+        name += "_transfer"
+        estimators.extend([
+            Aggregate(bg=clone(mixture), add_transfer_data=True, name="ExpMaxMSSG1x1,add_transfer"),
+            Aggregate(bg=ExpMaxSA(**sa_kwargs), add_transfer_data=True, name="ExpMaxAgg,add_transfer")
+        ])
 
     data_generator = generate_ihmm_synthetic_data
 
@@ -197,6 +206,7 @@ def main(
         directory=data_directory,
         score=[word_correct_rate, _log_likelihood_score, one_norm_score],
         x_var_name='n_core_tasks',
+        name=name,
         x_var_values=range(1, 31, 2),
         n_repeats=10)
 
