@@ -20,7 +20,6 @@ from seq_lda import (
 seaborn.set(style="white")
 seaborn.set_context(rc={'lines.markeredgewidth': 0.1})
 
-random_state = np.random.RandomState(4)
 data_directory = '/data/seq_lda/'
 
 
@@ -223,7 +222,6 @@ def main(
         'Correct Prediction Rate',
         'Log Likelihood',
         'Negative One Norm']
-    # x_var_display = '\# Training Samples per Task'
     x_var_display = '\# Tasks'
     title = 'Performance on Test Set'
 

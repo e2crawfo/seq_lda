@@ -7,13 +7,13 @@ from scipy.misc import logsumexp
 
 from spectral_dagger import Estimator
 from spectral_dagger.sequence import sample_words
-from spectral_dagger.utils import normalize, sample_multinomial
+from spectral_dagger.utils import normalize
 from spectral_dagger.sequence import SequenceModel
 from spectral_dagger.utils.dists import MixtureDist
 
 from seq_lda import (
     SequentialLDA, fit_callback_lda, lda_inference, write_settings)
-from seq_lda import MultitaskPredictor, MultitaskSequenceDataset, Dictionary
+from seq_lda import Dictionary
 
 LOG_ZERO = -10000
 
