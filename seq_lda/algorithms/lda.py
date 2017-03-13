@@ -10,7 +10,7 @@ class LDAEstimator(LDA, Estimator):
 
     def __init__(
             self, n_topics=1, directory='results/lda_markov/', name="LDA"):
-        self._init(locals())
+        self._set_attrs(locals())
 
         self.alpha_ = None
         self.log_topics_ = None

@@ -36,7 +36,7 @@ class MarkovLDA(SequentialLDA, Estimator):
 
     def __init__(self, n_topics=1, directory="results/lda_markov/",
                  name="MarkovLDA"):
-        self._init(locals())
+        self._set_attrs(locals())
 
     def point_distribution(self, context):
         return dict(n_topics=np.arange(2, context['max_topics']))

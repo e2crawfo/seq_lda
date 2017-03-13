@@ -17,7 +17,7 @@ class _MultitaskSeqEstimator(MultitaskPredictor, Estimator):
 
 class OneByOne(_MultitaskSeqEstimator):
     def __init__(self, bg=None, name=None, directory=None):
-        self._init(locals())
+        self._set_attrs(locals())
 
     def fit(self, X, y=None):
         self.record_indices(X.indices)
@@ -34,7 +34,7 @@ class OneByOne(_MultitaskSeqEstimator):
 
 class Aggregate(_MultitaskSeqEstimator):
     def __init__(self, bg=None, name=None, directory=None, add_transfer_data=False):
-        self._init(locals())
+        self._set_attrs(locals())
 
     def fit(self, X, y=None):
         self.record_indices(X.indices)

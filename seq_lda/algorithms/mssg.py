@@ -23,7 +23,7 @@ class MSSG(SequentialLDA, Estimator):
             self, bg=None, n_topics=1, n_samples=100, n_samples_scale=None,
             lda_settings=None, directory=None, name=None,
             random_state=None, verbose=False):
-        self._init(locals())
+        self._set_attrs(locals())
 
     @property
     def record_attrs(self):
@@ -119,7 +119,7 @@ class SingleMSSG(SequenceModel, Estimator):
             lda_settings=None, directory=None, name=None,
             random_state=None, verbose=False, to_hashable=lambda x: tuple(x),
             learn_halt=False):
-        self._init(locals())
+        self._set_attrs(locals())
 
     @property
     def record_attrs(self):
