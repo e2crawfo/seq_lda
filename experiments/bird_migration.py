@@ -11,7 +11,7 @@ from scipy.stats.mstats import zscore
 from sklearn.base import clone
 from sklearn.utils import check_random_state
 from spectral_dagger.utils import run_experiment_and_plot
-from spectral_dagger.sequence import GmmHmm
+from spectral_dagger.sequence import GaussianHMM
 
 from seq_lda.algorithms import MSSG, SingleMSSG, OneByOne, Aggregate
 from seq_lda import (
@@ -98,6 +98,12 @@ def make_process_data(max_sample_rate, horizon=None, standardize=False, delta=Fa
     return process_data
 
 
+def to_hashable(x):
+    x = x.copy()
+    x.flags.writeable = False
+    return hash(x.data)
+
+
 def generate_bird_migration_data(
         n_core_tasks=0,
         n_transfer_tasks=0,
@@ -136,12 +142,6 @@ def generate_bird_migration_data(
 
     data = data.values()
 
-    # Makes the ndarrays hashable.
-    for task_data in data:
-        for seq in task_data:
-            seq.flags.writeable = False
-    to_hashable = lambda x: hash(x.data)
-
     train_data, test_data = generate_multitask_sequence_data(
         data, n_core_tasks, n_transfer_tasks,
         train_split=(core_train_wpt, core_test_wpt),
@@ -170,18 +170,20 @@ def main(
         x_var_min=1,
         x_var_step=2,
         n_repeats=10,
-        horizon=24,
+        horizon=4,
         standardize=1,
         delta=0,
         hmm_verbose=0,
         lda_verbose=1,
         random_state=None,
         plot=None,
+        use_time=1,
+        directory=data_directory,
         show_data_stats=0):
 
     max_sample_rate = max_sample_rate or "1h"  # default 1 hour
     data_kwargs = locals().copy()
-    non_data = ('random_state hmm_verbose lda_verbose name '
+    non_data = ('random_state hmm_verbose lda_verbose name use_time directory '
                 'x_var_min x_var_max x_var_step n_repeats plot show_data_stats')
     for attr in non_data.split():
         del data_kwargs[attr]
@@ -226,34 +228,36 @@ def main(
 
         return
 
-    n_dim = 4
-    model_kwargs = dict(
-        n_dim=n_dim, n_components=1,
-        max_iter=1000, thresh=1e-4, verbose=0, cov_type='full',
-        careful=True, max_attempts=5)
+    ghmm = GaussianHMM(
+        covariance_type='diag', min_covar=1e-3,
+        startprob_prior=1.0, transmat_prior=1.0,
+        means_prior=0, means_weight=0,
+        covars_prior=1e-2, covars_weight=1,
+        algorithm="viterbi", n_iter=10, tol=1e-2, verbose=hmm_verbose,
+        params="stmc", init_params="stmc")
 
     mixture = SingleMSSG(
-        bg=GmmHmm(**model_kwargs),
+        bg=clone(ghmm),
         n_samples_scale=10,
         verbose=lda_verbose, name="Mixture",
-        to_hashable = lambda x: hash(x.data))
+        to_hashable=to_hashable)
 
     estimators = [
         MSSG(
-            bg=GmmHmm(**model_kwargs),
+            bg=clone(ghmm),
             n_samples_scale=10,
-            verbose=lda_verbose, name="GmmHmmMSSG"),
-        OneByOne(bg=clone(mixture), name="GmmHmmMSSG1x1"),
-        OneByOne(bg=GmmHmm(**model_kwargs), name="GmmHmm1x1"),
-        Aggregate(bg=clone(mixture), name="GmmHmmMSSGAgg"),
-        Aggregate(bg=GmmHmm(**model_kwargs), name="GmmHmmAgg")
+            verbose=lda_verbose, name="GaussianHMM/MSSG"),
+        OneByOne(bg=clone(mixture), name="GaussianHMM/MSSG1x1"),
+        OneByOne(bg=clone(ghmm), name="GaussianHMM/1x1"),
+        Aggregate(bg=clone(mixture), name="GaussianHMM/MSSGAgg"),
+        Aggregate(bg=clone(ghmm), name="GaussianHMM/Agg")
     ]
 
     if n_transfer_tasks > 0:
         name += "_transfer"
         estimators.extend([
-            Aggregate(bg=clone(mixture), add_transfer_data=True, name="GmmHmmMSSG1x1,add_transfer"),
-            Aggregate(bg=GmmHmm(**model_kwargs), add_transfer_data=True, name="GmmHmmAgg,add_transfer")
+            Aggregate(bg=clone(mixture), add_transfer_data=True, name="GaussianHMM/MSSG1x1,add_transfer"),
+            Aggregate(bg=clone(ghmm), add_transfer_data=True, name="GaussianHMM/Agg,add_transfer")
         ])
     data_generator = generate_bird_migration_data
 
@@ -268,11 +272,12 @@ def main(
         generate_data=data_generator,
         data_kwargs=data_kwargs,
         search_kwargs=dict(n_iter=10),
-        directory=data_directory,
+        directory=directory,
         score=[RMSE_score, _log_likelihood_score],
         x_var_name='n_core_tasks',
         name=name,
         x_var_values=x_var_values,
+        use_time=use_time,
         n_repeats=n_repeats)
 
     quick_exp_kwargs = exp_kwargs.copy()

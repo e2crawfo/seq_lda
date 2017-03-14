@@ -157,10 +157,13 @@ def main(
         n_repeats=10,
         hmm_verbose=0,
         lda_verbose=0,
+        use_time=1,
+        directory=data_directory,
         random_state=None):
 
     data_kwargs = locals().copy()
-    non_data = 'random_state hmm_verbose lda_verbose name x_var_min x_var_max x_var_step n_repeats'
+    non_data = ('random_state hmm_verbose lda_verbose name '
+                'x_var_min x_var_max x_var_step n_repeats use_time directory')
     for attr in non_data.split():
         del data_kwargs[attr]
 
@@ -207,10 +210,10 @@ def main(
         generate_data=data_generator,
         data_kwargs=data_kwargs,
         search_kwargs=dict(n_iter=10),
-        directory=data_directory,
+        directory=directory,
         score=[word_correct_rate, _log_likelihood_score, one_norm_score],
         x_var_name='n_core_tasks',
-        name=name,
+        name=name, use_time=use_time,
         x_var_values=x_var_values,
         n_repeats=n_repeats)
 

@@ -1,0 +1,4 @@
+python bird_migration.py --quick --parallel --name=bird_migration --horizon=10 --delta=1 --use-time=0 --directory='built_experiments' --standardize=1
+mv bird_migration.zip built_experiments
+sd-submit --task=cv --n-jobs=60 --input-zip=built_experiments/bird_migration.zip --n-nodes=1 --ppn=4 --walltime=0:15:00 --add-date=1 --verbose=1 --show-script=1 --exclude="train_scratch" --test=1 --scratch=/data/seq_lda
+sd-submit --task=test --n-jobs=30 --input-zip=built_experiments/bird_migration_cv.zip --n-nodes=1 --ppn=4 --walltime=0:15:00 --add-date=1 --verbose=1 --show-script=1 --exclude="test_scratch" --test=1 --scratch=/data/seq_lda
