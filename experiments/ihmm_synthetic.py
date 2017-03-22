@@ -82,7 +82,7 @@ def generate_ihmm_synthetic_data(
     assert alpha.shape[0] == 3
     assert (alpha >= 0.0).all()
 
-    assert noise > 0
+    assert noise >= 0
     state_noise_mask = np.array([[1, 1], [1, 1]])
     obs_noise_mask = np.array(
         [[1, 1, 1, 1, 1, 0, 0, 0],
@@ -104,14 +104,17 @@ def generate_ihmm_synthetic_data(
         hmms_for_task = []
         for idx in range(3):
             _A = A[idx].copy()
-            _A[state_noise_mask > 0] += (
-                random_state.uniform(0.0, noise, size=_A.shape)[state_noise_mask > 0])
-            _A = normalize(_A, ord=1, axis=1)
+
+            if noise > 0:
+                _A[state_noise_mask > 0] += (
+                    random_state.uniform(0.0, noise, size=_A.shape)[state_noise_mask > 0])
+                _A = normalize(_A, ord=1, axis=1)
 
             _B = B[idx].copy()
-            _B[obs_noise_mask > 0] += (
-                random_state.uniform(0.0, noise, size=_B.shape)[obs_noise_mask > 0])
-            _B = normalize(_B, ord=1, axis=1)
+            if noise > 0:
+                _B[obs_noise_mask > 0] += (
+                    random_state.uniform(0.0, noise, size=_B.shape)[obs_noise_mask > 0])
+                _B = normalize(_B, ord=1, axis=1)
 
             hmm = HMM(pi[idx], _A, _B, stop_prob)
             hmms_for_task.append(hmm)
@@ -151,9 +154,11 @@ def main(
         transfer_train_wpt=0,
         transfer_test_wpt=0,
         test_wpt=0,
-        x_var_max=31,
+        x_var_max=30,
         x_var_min=1,
         x_var_step=2,
+        x_var_n_values=-1,
+        x_var_name='n_core_tasks',
         n_repeats=10,
         hmm_verbose=0,
         lda_verbose=0,
@@ -163,7 +168,7 @@ def main(
 
     data_kwargs = locals().copy()
     non_data = ('random_state hmm_verbose lda_verbose name '
-                'x_var_min x_var_max x_var_step n_repeats use_time directory')
+                'x_var_min x_var_max x_var_step x_var_n_values x_var_name n_repeats use_time directory')
     for attr in non_data.split():
         del data_kwargs[attr]
 
@@ -203,7 +208,10 @@ def main(
         log_likelihood_score, string=(horizon == np.inf or horizon == 0))
     _log_likelihood_score.__name__ = "log_likelihood"
 
-    x_var_values = range(x_var_min, x_var_max, x_var_step)
+    if x_var_n_values > 0:
+        x_var_values = np.linspace(x_var_min, x_var_max, x_var_n_values)
+    else:
+        x_var_values = np.arange(x_var_min, x_var_max + 1, x_var_step)
 
     exp_kwargs = dict(
         mode='data', base_estimators=estimators,
@@ -212,14 +220,13 @@ def main(
         search_kwargs=dict(n_iter=10),
         directory=directory,
         score=[word_correct_rate, _log_likelihood_score, one_norm_score],
-        x_var_name='n_core_tasks',
+        x_var_name=x_var_name,
         name=name, use_time=use_time,
         x_var_values=x_var_values,
         n_repeats=n_repeats)
 
     quick_exp_kwargs = exp_kwargs.copy()
-    quick_exp_kwargs.update(
-        x_var_values=[2, 3, 4], n_repeats=2, search_kwargs=dict(n_iter=2))
+    quick_exp_kwargs.update(search_kwargs=dict(n_iter=2))
 
     score_display = [
         'Correct Prediction Rate',
