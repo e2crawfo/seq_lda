@@ -18,61 +18,34 @@ from seq_lda import (
     generate_multitask_sequence_data,
     RMSE_score, log_likelihood_score)
 
+
+PATH = '/data/seq_lda/weather'
 data_directory = '/data/seq_lda/'
-data_path = '/data/bird_migration/data/'
 
 
-def do_interpolate(data, k=1, plot=False):
-    data = data[:, [0, 1, 3]]
-
-    # perform interpolation
-    # tck, u = interpolate.splprep(data, k=k)
-    # u = np.linspace(0, 1, len(data))
-    # interpolated_points = interpolate.splev(u, tck)
-
-    if plot:
-        do_plot(data=data)
-        #do_plot(spline=interpolated_points, data=data)
+with open(os.path.join(PATH, 'HEADERS.txt'), 'r') as f:
+    f.readline()
+    HEADERS = f.readline().strip().split()
 
 
-def do_plot(spline=None, data=None, title=""):
-    lat = data[:, 0]
-    lon = data[:, 1]
-    height = data[:, 2]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    colors = cm.get_cmap('YlOrRd')(np.linspace(0, 1, data.shape[0]))
-    ax.scatter(lat, lon, height, c=colors)
-    ax.set_xlabel('lat')
-    ax.set_ylabel('lon')
-    ax.set_zlabel('z')
-    # if spline is not None:
-    #     ax.plot(spline[0], spline[1], spline[2], marker='<', c='red')
-    plt.title(title)
-    plt.show()
-
-
-def random_sample_with_min_count(indices, min_seq_count, n_tasks, process_data, rng=None):
-    """ Pick a bird for each task, process the data.
-
-    process_data: Function
-        A function that accepts a dataframe and returns a list of list of Observations,
-        each corresponding to a sequence.
-
-    """
-    indices = indices[:]  # make a copy so we can modify it
+def random_sample_with_min_count(years, min_seq_count, n_tasks, process_data, rng=None):
+    station_years = [os.path.join(y, s) for y in years for s in os.listdir(os.path.join(PATH, y))]
     rng = check_random_state(rng)
     chosen = OrderedDict()
 
-    while len(chosen) < n_tasks and indices:
-        idx = rng.choice(indices)
-        df = pd.read_csv(os.path.join(data_path, str(idx)))
+    while len(chosen) < n_tasks and station_years:
+        sy = rng.choice(station_years)
+        df = pd.read_csv(os.path.join(PATH, sy), sep='\s+', names=HEADERS, header=None)
+
+        date = pd.to_datetime(df['UTC_DATE'], format="%Y%m%d")
+        timedelta = pd.to_timedelta(60 * df['UTC_TIME'] / 100, unit='m')
+        df['timestamp'] = date + timedelta
+
         sequences = process_data(df)
         if len(sequences) >= min_seq_count:
-            chosen[idx] = sequences
+            chosen[sy] = sequences
 
-        indices.remove(idx)
+        station_years.remove(sy)
 
     if len(chosen) < n_tasks:
         raise Exception("Sampling cannot be satisfied.")
@@ -80,9 +53,13 @@ def random_sample_with_min_count(indices, min_seq_count, n_tasks, process_data, 
     return chosen
 
 
-def make_process_data(max_sample_rate, horizon=None, standardize=False, delta=False):
+def make_process_data(max_sample_rate, horizon=None, standardize=False, delta=False, fields=None):
+    #default_fields = 'timestamp T_CALC P_CALC SUR_TEMP RH_HR_AVG'.split()
+    default_fields = 'timestamp T_CALC SUR_TEMP RH_HR_AVG'.split()
+    fields = fields or default_fields
+
     def process_data(df):
-        df = df['timestamp location-long location-lat ground-speed height-above-ellipsoid'.split()]
+        df = df[fields]
         df = df.set_index(pd.DatetimeIndex(df['timestamp']))
         df = df.resample(max_sample_rate).mean().dropna()
         g = df.groupby([df.index.year, df.index.month, df.index.day])
@@ -104,7 +81,8 @@ def to_hashable(x):
     return hash(x.data)
 
 
-def generate_bird_migration_data(
+def generate_weather_data(
+        years=None,
         n_core_tasks=0,
         n_transfer_tasks=0,
         n_test_tasks=0,
@@ -118,16 +96,17 @@ def generate_bird_migration_data(
         standardize=False,
         delta=False,
         random_state=None):
-    """ Generate data from the bird migration dataset.
 
-        Each task is an animal. Each sequence is a day.
+    if not years:
+        years = [y for y in os.listdir(PATH) if y.startswith('20')]
+    else:
+        years = [str(y) for y in years]
 
-    """
     if horizon == 0 or horizon == np.inf:
         raise Exception("Horizon (%d) must be finite and positive." % horizon)
 
-    indices = [int(s) for s in os.listdir(data_path)]
-    process_data = make_process_data(max_sample_rate, horizon, standardize=standardize, delta=delta)
+    process_data = make_process_data(
+        max_sample_rate, horizon, standardize=standardize, delta=delta)
     random_state = check_random_state(random_state)
 
     n_seqs_per_task = max(
@@ -138,7 +117,7 @@ def generate_bird_migration_data(
     n_tasks = n_core_tasks + n_transfer_tasks + n_test_tasks
 
     data = random_sample_with_min_count(
-        indices, n_seqs_per_task, n_tasks, process_data, rng=random_state)
+        years, n_seqs_per_task, n_tasks, process_data, rng=random_state)
 
     data = data.values()
 
@@ -156,7 +135,7 @@ def generate_bird_migration_data(
 
 
 def main(
-        name="bird_migration",
+        name="weather",
         n_core_tasks=0,
         n_transfer_tasks=0,
         n_test_tasks=0,
@@ -176,57 +155,15 @@ def main(
         hmm_verbose=0,
         lda_verbose=1,
         random_state=None,
-        plot=None,
         use_time=1,
-        directory=data_directory,
-        show_data_stats=0):
+        directory=data_directory):
 
     max_sample_rate = max_sample_rate or "1h"  # default 1 hour
     data_kwargs = locals().copy()
     non_data = ('random_state hmm_verbose lda_verbose name use_time directory '
                 'x_var_min x_var_max x_var_step n_repeats plot show_data_stats')
     for attr in non_data.split():
-        del data_kwargs[attr]
-
-    if plot is not None:
-        # Plot should be a string that evaluates to a dict that maps
-        # animal indices to day indices to be plotted.
-        assert isinstance(plot, str)
-        plot = eval(plot)
-        assert isinstance(plot, dict)
-        process_data = make_process_data(max_sample_rate, horizon, standardize=standardize)
-
-        for animal_idx, day_indices in plot.items():
-            df = pd.read_csv(os.path.join(data_path, str(animal_idx)))
-            sequences = process_data(df)
-
-            if day_indices:
-                for day_idx in day_indices:
-                    do_interpolate(sequences[day_idx], plot=True)
-            else:
-                do_interpolate(np.vstack(sequences), plot=True)
-        return
-
-    if show_data_stats:
-        process_data = make_process_data(max_sample_rate, horizon, standardize=standardize)
-
-        n_gte = defaultdict(int)
-        to_check = [55, 65, 75, 85]
-        indices = sorted([int(s) for s in os.listdir(data_path)])
-        for idx in indices:
-            df = pd.read_csv(os.path.join(data_path, str(idx)))
-            sequences = process_data(df)
-
-            print "n_sequences for idx: {0}:".format(len(sequences))
-            print "Sequence lengths for idx: {0}:".format(idx)
-            print "{}".format([len(s) for s in sequences])
-
-            for tc in to_check:
-                if len(sequences) >= tc:
-                    n_gte[tc] += 1
-        print(n_gte)
-
-        return
+        data_kwargs.pop(attr, None)
 
     ghmm = GaussianHMM(
         covariance_type='diag', min_covar=1e-3,
@@ -259,13 +196,13 @@ def main(
             Aggregate(bg=clone(mixture), add_transfer_data=True, name="GaussianHMM/MSSGAgg,add_transfer"),
             Aggregate(bg=clone(ghmm), add_transfer_data=True, name="GaussianHMM/Agg,add_transfer")
         ])
-    data_generator = generate_bird_migration_data
+    data_generator = generate_weather_data
 
     _log_likelihood_score = partial(
         log_likelihood_score, string=False)
     _log_likelihood_score.__name__ = "log_likelihood"
 
-    x_var_values = range(x_var_min, x_var_max+1, x_var_step)
+    x_var_values = range(x_var_min, x_var_max + 1, x_var_step)
 
     exp_kwargs = dict(
         mode='data', base_estimators=estimators,

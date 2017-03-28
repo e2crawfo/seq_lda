@@ -154,9 +154,9 @@ def main(
         transfer_train_wpt=0,
         transfer_test_wpt=0,
         test_wpt=0,
-        x_var_max=30,
-        x_var_min=1,
-        x_var_step=2,
+        x_var_max=30.0,
+        x_var_min=1.0,
+        x_var_step=2.0,
         x_var_n_values=-1,
         x_var_name='n_core_tasks',
         n_repeats=10,
@@ -211,7 +211,7 @@ def main(
     if x_var_n_values > 0:
         x_var_values = np.linspace(x_var_min, x_var_max, x_var_n_values)
     else:
-        x_var_values = np.arange(x_var_min, x_var_max + 1, x_var_step)
+        x_var_values = np.arange(int(x_var_min), int(x_var_max) + 1, int(x_var_step))
 
     exp_kwargs = dict(
         mode='data', base_estimators=estimators,
